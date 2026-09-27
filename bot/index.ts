@@ -2,11 +2,13 @@ import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
+  WASocket,
 } from "@whiskeysockets/baileys";
 import http from "http";
 import pino from "pino";
 import qrcode from "qrcode-terminal";
 import path from "path";
+import fs from "fs";
 import { prisma } from "../lib/prisma";
 import { inferCategoryName } from "../lib/categorizer";
 import {
@@ -18,15 +20,43 @@ import {
 const AUTH_DIR = path.join(process.cwd(), "bot_auth");
 
 // State for web status and QR rendering
+let currentSock: WASocket | null = null;
 let latestQr: string | null = null;
 let isConnected = false;
 let botPhoneNumber = "";
 
 /**
+ * Resets WhatsApp authentication session to allow scanning with a new phone number
+ */
+async function resetWhatsAppSession() {
+  console.log("🔄 Mereset sesi WhatsApp bot...");
+  try {
+    if (currentSock) {
+      currentSock.ev.removeAllListeners("connection.update");
+      currentSock.ev.removeAllListeners("messages.upsert");
+      currentSock.ev.removeAllListeners("creds.update");
+      currentSock.end(undefined);
+      currentSock = null;
+    }
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.error("Gagal membersihkan auth dir:", err);
+  }
+  isConnected = false;
+  latestQr = null;
+  botPhoneNumber = "";
+  setTimeout(() => {
+    startWhatsAppBot();
+  }, 1000);
+}
+
+/**
  * Lightweight HTTP server for Render health checks and Web QR code display
  */
 const PORT = process.env.PORT || 3001;
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = req.url || "/";
 
   if (url === "/health" || url === "/") {
@@ -41,6 +71,13 @@ const server = http.createServer((req, res) => {
     );
   }
 
+  // Reset / Change Number Endpoint
+  if (url === "/reset" || url === "/logout") {
+    await resetWhatsAppSession();
+    res.writeHead(302, { Location: "/qr" });
+    return res.end();
+  }
+
   if (url === "/qr") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     if (isConnected) {
@@ -52,16 +89,21 @@ const server = http.createServer((req, res) => {
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0f172a; color: #f8fafc; }
-            .card { background: #1e293b; padding: 2rem; border-radius: 1rem; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-            .badge { background: #22c55e; color: #000; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; }
+            .card { background: #1e293b; padding: 2.5rem; border-radius: 1rem; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 420px; }
+            .badge { background: #22c55e; color: #000; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; font-size: 0.875rem; }
+            .btn { display: inline-block; margin-top: 1.5rem; padding: 0.6rem 1.2rem; background: #ef4444; color: white; border: none; border-radius: 0.5rem; text-decoration: none; font-weight: 600; cursor: pointer; transition: 0.2s; }
+            .btn:hover { background: #dc2626; }
           </style>
         </head>
         <body>
           <div class="card">
-            <h1>✅ WhatsApp Bot Terhubung!</h1>
-            <p><span class="badge">ONLINE</span></p>
-            <p>Nomor Akun: <strong>${botPhoneNumber}</strong></p>
-            <p>Bot siap menerima chat pencatatan keuangan 24/7.</p>
+            <h1>✅ Bot Terhubung!</h1>
+            <p><span class="badge">ONLINE 24/7</span></p>
+            <p>Nomor Akun Bot: <br><strong style="font-size: 1.25rem; color: #38bdf8;">+${botPhoneNumber}</strong></p>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Bot aktif menerima pesan pencatatan keuangan dan otomatis mencatat ke Supabase.</p>
+            <hr style="border: 0; border-top: 1px solid #334155; margin: 1.5rem 0;">
+            <p style="font-size: 0.875rem; color: #cbd5e1;">Ingin mengganti nomor WhatsApp bot?</p>
+            <a href="/reset" class="btn" onclick="return confirm('Apakah Anda yakin ingin logout dan mengganti nomor bot?')">Ganti Nomor / Logout</a>
           </div>
         </body>
         </html>
@@ -103,8 +145,8 @@ const server = http.createServer((req, res) => {
       <head>
         <meta http-equiv="refresh" content="3">
       </head>
-      <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-        <h3>⏳ Menyiapkan sesi WhatsApp... Silakan tunggu beberapa detik.</h3>
+      <body style="font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: white;">
+        <h3>⏳ Menyiapkan sesi WhatsApp baru... Halaman akan refresh otomatis.</h3>
       </body>
       </html>
     `);
@@ -167,6 +209,8 @@ async function startWhatsAppBot() {
     browser: ["Bot Keuangan", "Chrome", "1.0.0"],
   });
 
+  currentSock = sock;
+
   // Handle connection events & QR Code
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -194,6 +238,7 @@ async function startWhatsAppBot() {
         startWhatsAppBot();
       } else {
         console.log("❌ Sesi telah logout. Silakan jalankan bot kembali untuk scan QR baru.");
+        resetWhatsAppSession();
       }
     } else if (connection === "open") {
       isConnected = true;
