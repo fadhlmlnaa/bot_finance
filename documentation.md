@@ -1,6 +1,6 @@
 # Personal Finance Tracker Backend Documentation
 
-Dokumentasi arsitektur, skema database, API Auth Login (Flutter), Menu Admin (`is_admin`), API Transaksi Mobile & Bot WA, sistem Membership/Kuota Bulanan, serta integrasi Flutter & WhatsApp Bot.
+Dokumentasi arsitektur, skema database, API Auth Login (Flutter), API Admin (Edit Maksimal Kuota & Subscription), Dashboard Direktur, API Transaksi Mobile & Bot WA, serta integrasi lengkap Flutter & WhatsApp Bot.
 
 ---
 
@@ -11,7 +11,7 @@ Dokumentasi arsitektur, skema database, API Auth Login (Flutter), Menu Admin (`i
 - **Database ORM**: Prisma ORM
 - **Database Engine**: PostgreSQL (Supabase Connection Pooler)
 - **WhatsApp Engine**: `@whiskeysockets/baileys` (Multi-device QR authentication)
-- **Mobile Integration**: REST API for Flutter Mobile Apps
+- **Deployment**: Next.js API (Vercel) + WA Bot Worker (Render / Docker)
 
 ---
 
@@ -127,9 +127,139 @@ Digunakan oleh aplikasi Flutter untuk login/register menggunakan nomor telepon. 
 
 ---
 
-## 4. API Create Transaksi Mobile Apps (`POST /api/transactions`)
+## 4. API Khusus Admin (Edit Kuota, Subscription & Dashboard)
 
-Digunakan untuk mencatat pengeluaran/pemasukan dari aplikasi Flutter.
+### A. Edit Maksimal Kuota & Subscription User (`POST /api/admin/subscription`)
+
+Admin di aplikasi mobile dapat mengedit kuota maksimal transaksi per bulan, paket (`FREE`/`PRO`/`UNLIMITED`), masa aktif, dan status admin.
+
+- **URL**: `POST /api/admin/subscription` (atau `PUT /api/admin/subscription`)
+- **Headers**: `Content-Type: application/json`
+
+#### Contoh 1: Edit Kuota Maksimal Transaksi Saja
+```json
+{
+  "phoneNumber": "085280357817",
+  "monthlyQuota": 500
+}
+```
+
+#### Contoh 2: Upgrade Paket Langganan + Durasi Hari + Custom Kuota
+```json
+{
+  "phoneNumber": "085280357817",
+  "plan": "PRO",
+  "durationDays": 30,
+  "monthlyQuota": 300
+}
+```
+
+#### Contoh 3: Jadikan User sebagai Admin
+```json
+{
+  "phoneNumber": "085280357817",
+  "isAdmin": true
+}
+```
+
+#### Response Success (`200 OK`):
+```json
+{
+  "success": true,
+  "message": "User 6285280357817 successfully updated.",
+  "data": {
+    "user": {
+      "id": "4375a054-7a81-4b55-96f0-2ccebeb500c9",
+      "phoneNumber": "6285280357817",
+      "name": "Fadhil Maulana",
+      "isAdmin": true,
+      "plan": "PRO",
+      "monthlyQuota": 500,
+      "subscriptionEnd": "2026-10-28T00:46:00.000Z"
+    },
+    "quota": {
+      "used": 4,
+      "maxQuota": 500,
+      "remaining": 496,
+      "isAllowed": true,
+      "isUnlimited": false
+    }
+  }
+}
+```
+
+---
+
+### B. List Seluruh Pengguna & Kuota Realtime (`GET /api/admin/subscription`)
+
+Digunakan untuk list user di menu Kelola Membership Admin pada aplikasi mobile:
+
+- **URL**: `GET /api/admin/subscription`
+- **Query Params**:
+  - `?search=0852` (Cari nomor HP atau nama)
+  - `?plan=PRO` (Filter paket FREE, PRO, atau UNLIMITED)
+
+#### Response:
+```json
+{
+  "success": true,
+  "count": 2,
+  "users": [
+    {
+      "id": "4375a054-...",
+      "phoneNumber": "6285280357817",
+      "name": "Fadhil Maulana",
+      "isAdmin": true,
+      "plan": "PRO",
+      "monthlyQuota": 500,
+      "subscriptionEnd": "2026-10-28T00:46:00.000Z",
+      "totalTransactionsCount": 12,
+      "usage": {
+        "used": 4,
+        "maxQuota": 500,
+        "remaining": 496,
+        "isAllowed": true,
+        "isUnlimited": false,
+        "expiresAt": "2026-10-28T00:46:00.000Z"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### C. Dashboard Analitik Direktur (`GET /api/admin/dashboard`)
+
+Digunakan untuk menampilkan performa bisnis, total user aktif, dan volume transaksi:
+
+- **URL**: `GET /api/admin/dashboard`
+- **Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "metrics": {
+      "totalUsers": 25,
+      "freeUsers": 18,
+      "proUsers": 5,
+      "unlimitedUsers": 2,
+      "adminUsers": 2,
+      "activePaidSubscriptions": 7,
+      "totalTransactions": 348,
+      "totalIncomeVolume": 85000000,
+      "totalExpenseVolume": 14250000
+    },
+    "recentUsers": [ ... ]
+  }
+}
+```
+
+---
+
+## 5. API Create Transaksi Mobile Apps (`POST /api/transactions`)
+
+Digunakan untuk mencatat pengeluaran/pemasukan dari aplikasi Flutter atau Bot WhatsApp.
 
 ### Request:
 - **URL**: `POST /api/transactions`
@@ -145,7 +275,6 @@ Digunakan untuk mencatat pengeluaran/pemasukan dari aplikasi Flutter.
   "date": "2026-09-27T23:40:00.000Z"
 }
 ```
-*(Catatan: Bisa menggunakan `phoneNumber` atau `userId`. Field `date` dan `category` bersifat opsional).*
 
 ### Response Success (`200 OK`):
 ```json
@@ -177,7 +306,7 @@ Digunakan untuk mencatat pengeluaran/pemasukan dari aplikasi Flutter.
 
 ---
 
-## 5. Contoh Integrasi di Flutter (Dart)
+## 6. Contoh Integrasi di Flutter (Dart)
 
 ### A. Model User & Auth (`UserModel.dart`):
 
@@ -220,100 +349,78 @@ class UserModel {
 }
 ```
 
-### B. Service Login & Create Transaction (`api_service.dart`):
+### B. Service Admin di Flutter (`admin_service.dart`):
 
 ```dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-class ApiService {
-  static const String baseUrl = 'https://bot-finance-xxx.vercel.app';
+class AdminService {
+  static const String baseUrl = 'https://bot-finance-pi.vercel.app';
 
-  // 1. Auth Login
-  static Future<UserModel> login(String phoneNumber, {String? name}) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'phoneNumber': phoneNumber, 'name': name}),
-    );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      return UserModel.fromJson(json['data']);
-    } else {
-      throw Exception('Gagal login: ${response.body}');
-    }
-  }
-
-  // 2. Create Transaksi
-  static Future<bool> createTransaction({
+  // 1. Edit Kuota Transaksi & Subscription User dari Mobile
+  static Future<bool> updateUserQuota({
     required String phoneNumber,
-    required String description,
-    required double amount,
-    required String type, // 'INCOME' | 'EXPENSE'
-    String? category,
+    int? monthlyQuota,
+    String? plan, // 'FREE' | 'PRO' | 'UNLIMITED'
+    int? durationDays,
+    bool? isAdmin,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/api/transactions'),
+      Uri.parse('$baseUrl/api/admin/subscription'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'phoneNumber': phoneNumber,
-        'description': description,
-        'amount': amount,
-        'type': type,
-        'category': category,
+        if (monthlyQuota != null) 'monthlyQuota': monthlyQuota,
+        if (plan != null) 'plan': plan,
+        if (durationDays != null) 'durationDays': durationDays,
+        if (isAdmin != null) 'isAdmin': isAdmin,
       }),
     );
 
     return response.statusCode == 200;
   }
-}
-```
 
-### C. Menampilkan Menu Khusus Admin di UI Flutter:
+  // 2. Mengambil Semua User & Sisa Kuotanya
+  static Future<List<dynamic>> getAllUsers({String? search, String? plan}) async {
+    final queryParams = <String, String>{};
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (plan != null && plan.isNotEmpty) queryParams['plan'] = plan;
 
-```dart
-Widget buildDashboard(UserModel user) {
-  return Column(
-    children: [
-      // Info Kuota User
-      Text('Paket: ${user.plan} (${user.usedQuota}/${user.monthlyQuota} Transaksi)'),
+    final uri = Uri.parse('$baseUrl/api/admin/subscription').replace(queryParameters: queryParams);
+    final response = await http.get(uri);
 
-      // Menu Utama User Biasa
-      ElevatedButton(onPressed: () => addTransaction(), child: Text('Tambah Transaksi')),
-      ElevatedButton(onPressed: () => viewHistory(), child: Text('Riwayat Transaksi')),
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json['users'];
+    }
+    return [];
+  }
 
-      // KHUSUS ADMIN (Hanya muncul jika isAdmin == true)
-      if (user.isAdmin) ...[
-        Divider(),
-        Text('👑 Panel Khusus Admin', style: TextStyle(fontWeight: FontWeight.bold)),
-        ListTile(
-          leading: Icon(Icons.people, color: Colors.amber),
-          title: Text('Kelola Membership & Kuota User'),
-          onTap: () => Navigator.pushNamed(context, '/admin/subscriptions'),
-        ),
-        ListTile(
-          leading: Icon(Icons.admin_panel_settings, color: Colors.blue),
-          title: Text('Dashboard Direktur / Rekap Global'),
-          onTap: () => Navigator.pushNamed(context, '/admin/director-dashboard'),
-        ),
-      ],
-    ],
-  );
+  // 3. Mengambil Metrik Dashboard Direktur
+  static Future<Map<String, dynamic>> getDirectorDashboardStats() async {
+    final response = await http.get(Uri.parse('$baseUrl/api/admin/dashboard'));
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json['data']['metrics'];
+    }
+    throw Exception('Gagal memuat analitik dashboard');
+  }
 }
 ```
 
 ---
 
-## 6. Ringkasan Endpoint Lengkap
+## 7. Ringkasan Endpoint Lengkap
 
 | Method | Endpoint | Deskripsi |
 |---|---|---|
-| `POST` | `/api/auth/login` | Login Flutter (mengembalikan data user, `isAdmin`, dan sisa kuota) |
+| `POST` | `/api/auth/login` | Login Flutter (mengembalikan user, `isAdmin`, dan sisa kuota) |
 | `GET` | `/api/auth/me` | Refresh profile user & kuota real-time |
 | `POST` | `/api/transactions` | Catat transaksi baru dari Flutter / WA (dengan validasi kuota) |
 | `GET` | `/api/transactions` | Ambil riwayat transaksi user (`?phoneNumber=...`) |
 | `GET` | `/api/transactions/summary` | Rekapitulasi keuangan & per kategori (`?phoneNumber=...`) |
 | `GET` | `/api/categories` | Ambil daftar kategori |
-| `POST` | `/api/admin/subscription` | Aktivasi / Ubah paket & kuota user oleh Admin |
-| `GET` | `/api/admin/subscription` | Lihat daftar seluruh user dan penggunaan kuotanya |
+| `POST` | `/api/admin/subscription` | **Admin:** Edit kuota maks transaksi, paket, masa aktif, dan status admin user |
+| `GET` | `/api/admin/subscription` | **Admin:** Lihat daftar seluruh user dan penggunaan kuotanya |
+| `GET` | `/api/admin/dashboard` | **Admin:** Metrik analitik & statistik Dashboard Direktur |
