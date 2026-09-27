@@ -76,19 +76,36 @@ export async function POST(request: Request) {
     let user = null;
     if (userId) {
       user = await prisma.user.findUnique({ where: { id: userId } });
-    } else if (cleanPhone) {
-      user = await prisma.user.findUnique({ where: { phoneNumber: cleanPhone } });
+    }
+    
+    if (!user && cleanPhone) {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phoneNumber: cleanPhone },
+            { phoneNumber: cleanPhone.replace(/^62/, "0") },
+            { phoneNumber: cleanPhone.replace(/^0/, "62") },
+          ],
+        },
+      });
     }
 
     if (!user) {
-      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: `User dengan nomor ${phoneNumber} tidak ditemukan di database` },
+        { status: 404 }
+      );
     }
 
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: {
         sheetWebhookUrl:
-          sheetWebhookUrl !== undefined ? (sheetWebhookUrl ? String(sheetWebhookUrl).trim() : null) : undefined,
+          sheetWebhookUrl !== undefined
+            ? sheetWebhookUrl && String(sheetWebhookUrl).trim().length > 0
+              ? String(sheetWebhookUrl).trim()
+              : null
+            : undefined,
         autoSyncSheet:
           autoSyncSheet !== undefined ? Boolean(autoSyncSheet) : undefined,
       },

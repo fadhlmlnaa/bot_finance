@@ -192,6 +192,7 @@ export default function UserPortalPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          userId: currentUser.id,
           phoneNumber: currentUser.phoneNumber,
           sheetWebhookUrl: sheetWebhookUrl.trim() || null,
           autoSyncSheet,
@@ -200,7 +201,7 @@ export default function UserPortalPage() {
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || "Gagal menyimpan pengaturan");
+        throw new Error(json.error || json.message || "Gagal menyimpan pengaturan");
       }
 
       setSheetFeedbackMsg({

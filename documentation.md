@@ -90,9 +90,11 @@ model Transaction {
 Digunakan oleh aplikasi Flutter untuk login/register menggunakan nomor telepon. Sistem secara otomatis mengembalikan flag **`isAdmin`** agar aplikasi Flutter bisa menampilkan menu khusus Admin.
 
 ### Request:
+
 - **URL**: `POST /api/auth/login`
 - **Headers**: `Content-Type: application/json`
 - **Body**:
+
 ```json
 {
   "phoneNumber": "085280357817",
@@ -101,6 +103,7 @@ Digunakan oleh aplikasi Flutter untuk login/register menggunakan nomor telepon. 
 ```
 
 ### Response Success (`200 OK`):
+
 ```json
 {
   "success": true,
@@ -141,6 +144,7 @@ Admin di aplikasi mobile dapat mengedit kuota maksimal transaksi per bulan, pake
 - **Headers**: `Content-Type: application/json`
 
 #### Contoh 1: Edit Kuota Maksimal Transaksi Saja
+
 ```json
 {
   "phoneNumber": "085280357817",
@@ -149,6 +153,7 @@ Admin di aplikasi mobile dapat mengedit kuota maksimal transaksi per bulan, pake
 ```
 
 #### Contoh 2: Upgrade Paket Langganan + Durasi Hari + Custom Kuota
+
 ```json
 {
   "phoneNumber": "085280357817",
@@ -159,6 +164,7 @@ Admin di aplikasi mobile dapat mengedit kuota maksimal transaksi per bulan, pake
 ```
 
 #### Contoh 3: Jadikan User sebagai Admin
+
 ```json
 {
   "phoneNumber": "085280357817",
@@ -167,6 +173,7 @@ Admin di aplikasi mobile dapat mengedit kuota maksimal transaksi per bulan, pake
 ```
 
 #### Response Success (`200 OK`):
+
 ```json
 {
   "success": true,
@@ -204,6 +211,7 @@ Digunakan untuk list user di menu Kelola Membership Admin pada aplikasi mobile:
   - `?plan=PRO` (Filter paket FREE, PRO, atau UNLIMITED)
 
 #### Response:
+
 ```json
 {
   "success": true,
@@ -239,6 +247,7 @@ Digunakan untuk menampilkan performa bisnis, total user aktif, dan volume transa
 
 - **URL**: `GET /api/admin/dashboard`
 - **Response**:
+
 ```json
 {
   "success": true,
@@ -267,6 +276,7 @@ Digunakan oleh aplikasi Flutter Admin untuk memantau status kesehatan & latensi 
 
 - **URL**: `GET /api/admin/health` (atau `GET /api/admin/engine-status`)
 - **Response**:
+
 ```json
 {
   "success": true,
@@ -313,9 +323,11 @@ Digunakan oleh aplikasi Flutter Admin untuk memantau status kesehatan & latensi 
 Digunakan untuk mencatat pengeluaran/pemasukan dari aplikasi Flutter atau Bot WhatsApp.
 
 ### Request:
+
 - **URL**: `POST /api/transactions`
 - **Headers**: `Content-Type: application/json`
 - **Body**:
+
 ```json
 {
   "phoneNumber": "6285280357817",
@@ -328,6 +340,7 @@ Digunakan untuk mencatat pengeluaran/pemasukan dari aplikasi Flutter atau Bot Wh
 ```
 
 ### Response Success (`200 OK`):
+
 ```json
 {
   "success": true,
@@ -413,15 +426,17 @@ class UserModel {
 Fitur ini memungkinkan setiap transaksi yang dicatat via **WhatsApp Bot**, **Website User Portal**, ataupun **Aplikasi Android/iOS Flutter** langsung otomatis tersimpan ke **Google Spreadsheet pribadi milik user**.
 
 ### A. Alur Kerja Auto-Sync (Real-time & Non-blocking)
+
 1. User membuat Google Spreadsheet di Google Drive & memasang Google Apps Script.
 2. User mengaktifkan Auto-Sync dan memasukkan Webhook URL Google Apps Script (`/exec`).
 3. Setiap ada transaksi baru masuk (`POST /api/transactions` atau Bot WA), server Next.js memicu `syncTransactionToGoogleSheet()` secara asynchronous di background dengan timeout 6 detik sehingga respons bot & mobile tetap instan (< 500ms).
-4. Google Apps Script menambahkan 1 baris baru (*appendRow*) berisi Tanggal, Deskripsi, Kategori, Tipe, Nominal (Rupiah), Tanda (+/-), User, dan ID Transaksi.
+4. Google Apps Script menambahkan 1 baris baru (_appendRow_) berisi Tanggal, Deskripsi, Kategori, Tipe, Nominal (Rupiah), Tanda (+/-), User, dan ID Transaksi.
 
 ---
 
 ### B. Template Google Apps Script (`Code.gs`)
-Salin kode berikut ke Google Spreadsheet Anda di menu **Ekstensi (Extensions)** > **Apps Script**, lalu klik **Deploy** > **New deployment** > **Web app** (*Who has access: Anyone*):
+
+Salin kode berikut ke Google Spreadsheet Anda di menu **Ekstensi (Extensions)** > **Apps Script**, lalu klik **Deploy** > **New deployment** > **Web app** (_Who has access: Anyone_):
 
 ```javascript
 /**
@@ -434,14 +449,26 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
 
     // 1. Tentukan nama tab sheet per bulan (contoh: "September 2026")
-    var sheetName = data.sheetName || (function() {
-      var months = [
-        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-      ];
-      var now = new Date();
-      return months[now.getMonth()] + " " + now.getFullYear();
-    })();
+    var sheetName =
+      data.sheetName ||
+      (function () {
+        var months = [
+          "Januari",
+          "Februari",
+          "Maret",
+          "April",
+          "Mei",
+          "Juni",
+          "Juli",
+          "Agustus",
+          "September",
+          "Oktober",
+          "November",
+          "Desember",
+        ];
+        var now = new Date();
+        return months[now.getMonth()] + " " + now.getFullYear();
+      })();
 
     // 2. Cari tab sheet bulan terkait, jika belum ada, buat tab baru secara otomatis!
     var sheet = ss.getSheetByName(sheetName);
@@ -461,9 +488,13 @@ function doPost(e) {
         "Kategori",
         "Deskripsi",
         "Nominal (Rp)",
-        "Nominal (+/-)"
+        "Nominal (+/-)",
       ]);
-      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#FF6D00").setFontColor("#FFFFFF");
+      sheet
+        .getRange(1, 1, 1, 10)
+        .setFontWeight("bold")
+        .setBackground("#FF6D00")
+        .setFontColor("#FFFFFF");
       sheet.setFrozenRows(1);
     }
 
@@ -478,7 +509,7 @@ function doPost(e) {
       data.category || "Umum",
       data.description,
       data.amount,
-      data.signedAmount
+      data.signedAmount,
     ]);
 
     // 5. Format kolom nominal (kolom 9 & 10) ke format Rupiah
@@ -490,20 +521,22 @@ function doPost(e) {
         success: true,
         message: "Transaksi berhasil dicatat ke tab sheet " + sheetName,
         sheet: sheetName,
-        row: lastRow
-      })
+        row: lastRow,
+      }),
     ).setMimeType(ContentService.MimeType.JSON);
-
   } catch (error) {
     return ContentService.createTextOutput(
-      JSON.stringify({ success: false, error: error.toString() })
+      JSON.stringify({ success: false, error: error.toString() }),
     ).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 function doGet(e) {
   return ContentService.createTextOutput(
-    JSON.stringify({ status: "active", message: "PingKas Google Sheets Webhook is ready!" })
+    JSON.stringify({
+      status: "active",
+      message: "PingKas Google Sheets Webhook is ready!",
+    }),
   ).setMimeType(ContentService.MimeType.JSON);
 }
 ```
@@ -513,8 +546,10 @@ function doGet(e) {
 ### C. Endpoint Pengaturan Webhook User
 
 #### 1. Ambil Pengaturan Google Sheets (`GET /api/user/sheet-settings`)
+
 - **URL**: `GET /api/user/sheet-settings?phoneNumber=085280357817`
 - **Response**:
+
 ```json
 {
   "success": true,
@@ -527,8 +562,10 @@ function doGet(e) {
 ```
 
 #### 2. Simpan Pengaturan Google Sheets (`POST /api/user/sheet-settings`)
+
 - **URL**: `POST /api/user/sheet-settings`
 - **Body**:
+
 ```json
 {
   "phoneNumber": "085280357817",
@@ -538,9 +575,12 @@ function doGet(e) {
 ```
 
 #### 3. Tes Koneksi & Kirim Baris Uji Coba (`POST /api/user/sheet-settings/test`)
+
 Mengirim 1 baris dummy ke spreadsheet pengguna untuk memastikan Webhook URL valid dan dapat diakses.
+
 - **URL**: `POST /api/user/sheet-settings/test`
 - **Body**:
+
 ```json
 {
   "phoneNumber": "085280357817",
@@ -904,20 +944,19 @@ class AdminService {
 
 ## 7. Ringkasan Endpoint Lengkap
 
-| Method | Endpoint | Deskripsi |
-|---|---|---|
-| `POST` | `/api/auth/login` | Login Flutter (mengembalikan user, `isAdmin`, `sheetWebhookUrl`, dan sisa kuota) |
-| `GET` | `/api/auth/me` | Refresh profile user & kuota real-time |
-| `POST` | `/api/transactions` | Catat transaksi baru dari Flutter / WA (auto-sync ke Google Sheets jika aktif) |
-| `GET` | `/api/transactions` | Ambil riwayat transaksi user (`?phoneNumber=...`) |
-| `GET` | `/api/transactions/summary` | Rekapitulasi keuangan & per kategori (`?phoneNumber=...`) |
-| `GET` | `/api/transactions/export` | Unduh file `.csv` / Excel rekapitulasi transaksi berformat UTF-8 BOM |
-| `GET` | `/api/user/sheet-settings` | Ambil Webhook URL & status auto-sync Google Sheets user |
-| `POST` | `/api/user/sheet-settings` | Simpan / update Webhook URL & toggle auto-sync Google Sheets |
-| `POST` | `/api/user/sheet-settings/test` | Kirim baris sampel untuk menguji koneksi Webhook Google Sheets |
-| `GET` | `/api/categories` | Ambil daftar kategori |
-| `POST` | `/api/admin/subscription` | **Admin:** Edit kuota maks transaksi, paket, masa aktif, dan status admin user |
-| `GET` | `/api/admin/subscription` | **Admin:** Lihat daftar seluruh user dan penggunaan kuotanya |
-| `GET` | `/api/admin/dashboard` | **Admin:** Metrik analitik & statistik Dashboard Direktur |
-| `GET` | `/api/admin/health` | **Admin:** Monitoring status kesehatan 3 engine (API, Database Supabase, dan Bot WA) |
-
+| Method | Endpoint                        | Deskripsi                                                                            |
+| ------ | ------------------------------- | ------------------------------------------------------------------------------------ |
+| `POST` | `/api/auth/login`               | Login Flutter (mengembalikan user, `isAdmin`, `sheetWebhookUrl`, dan sisa kuota)     |
+| `GET`  | `/api/auth/me`                  | Refresh profile user & kuota real-time                                               |
+| `POST` | `/api/transactions`             | Catat transaksi baru dari Flutter / WA (auto-sync ke Google Sheets jika aktif)       |
+| `GET`  | `/api/transactions`             | Ambil riwayat transaksi user (`?phoneNumber=...`)                                    |
+| `GET`  | `/api/transactions/summary`     | Rekapitulasi keuangan & per kategori (`?phoneNumber=...`)                            |
+| `GET`  | `/api/transactions/export`      | Unduh file `.csv` / Excel rekapitulasi transaksi berformat UTF-8 BOM                 |
+| `GET`  | `/api/user/sheet-settings`      | Ambil Webhook URL & status auto-sync Google Sheets user                              |
+| `POST` | `/api/user/sheet-settings`      | Simpan / update Webhook URL & toggle auto-sync Google Sheets                         |
+| `POST` | `/api/user/sheet-settings/test` | Kirim baris sampel untuk menguji koneksi Webhook Google Sheets                       |
+| `GET`  | `/api/categories`               | Ambil daftar kategori                                                                |
+| `POST` | `/api/admin/subscription`       | **Admin:** Edit kuota maks transaksi, paket, masa aktif, dan status admin user       |
+| `GET`  | `/api/admin/subscription`       | **Admin:** Lihat daftar seluruh user dan penggunaan kuotanya                         |
+| `GET`  | `/api/admin/dashboard`          | **Admin:** Metrik analitik & statistik Dashboard Direktur                            |
+| `GET`  | `/api/admin/health`             | **Admin:** Monitoring status kesehatan 3 engine (API, Database Supabase, dan Bot WA) |
