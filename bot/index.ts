@@ -14,7 +14,7 @@ import { inferCategoryName } from "../lib/categorizer";
 import { checkUserQuota, updateUserSubscription } from "../lib/subscription";
 import { SubscriptionPlan } from "@prisma/client";
 import { parseWhatsAppMessage, formatRupiah, formatDateTime } from "./parser";
-import { syncTransactionToGoogleSheet } from "../lib/sheets";
+import { syncTransactionToGoogleSheet, GOOGLE_APPS_SCRIPT_TEMPLATE } from "../lib/sheets";
 
 
 const AUTH_DIR = path.join(process.cwd(), "bot_auth");
@@ -684,45 +684,184 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 4. Command: Auto-sync Google Sheets (!setsheet <url>)
-      if (trimmedText.startsWith("!setsheet") || trimmedText.startsWith("!sheet")) {
+      // 4. Command: Auto-sync Google Sheets (!setsheet)
+      if (
+        trimmedText.startsWith("!setsheet") ||
+        trimmedText.startsWith("!sheet") ||
+        trimmedText.startsWith("!syncsheet")
+      ) {
         const parts = trimmedText.split(/\s+/);
+
+        // Sub-command: Status & Panduan jika tanpa argumen
         if (parts.length < 2) {
+          const currentStatus = user.autoSyncSheet && user.sheetWebhookUrl
+            ? `🟢 *AKTIF*\n🔗 URL: \`${user.sheetWebhookUrl.slice(0, 45)}...\``
+            : `🔴 *NONAKTIF*`;
+
           await sock.sendMessage(
             senderJid,
             {
               text:
-                `📊 *PANDUAN AUTO-SYNC GOOGLE SHEETS*\n` +
+                `📊 *PENGATURAN AUTO-SYNC GOOGLE SHEETS*\n` +
                 `━━━━━━━━━━━━━━━━━━━━\n` +
-                `Format: \`!setsheet <URL_Web_App_Google_Apps_Script>\`\n\n` +
-                `*Contoh:*\n` +
-                `\`!setsheet https://script.google.com/macros/s/.../exec\`\n\n` +
-                `_Ketik \`!setsheet off\` untuk menonaktifkan sync._`,
+                `Status Saat Ini: ${currentStatus}\n\n` +
+                `*Perintah WhatsApp:* \n` +
+                `• \`!setsheet <URL>\` : Pasang Webhook Apps Script\n` +
+                `• \`!setsheet test\` : Uji coba kirim 1 baris data\n` +
+                `• \`!setsheet code\` : Minta kode script template\n` +
+                `• \`!setsheet off\` : Nonaktifkan auto-sync\n\n` +
+                `*Contoh Pasang:* \n` +
+                `\`!setsheet https://script.google.com/macros/s/.../exec\`\n` +
+                `━━━━━━━━━━━━━━━━━━━━`,
             },
-            { quoted: msg },
+            { quoted: msg }
           );
           continue;
         }
 
-        const rawUrl = parts[1].trim();
-        const isOff = rawUrl.toLowerCase() === "off" || rawUrl.toLowerCase() === "disable";
+        const subCommand = parts[1].trim();
 
-        await prisma.user.update({
+        // Sub-command: Minta Template Kode Apps Script
+        if (subCommand.toLowerCase() === "code" || subCommand.toLowerCase() === "script") {
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `📝 *KODE GOOGLE APPS SCRIPT PINGKAS*\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
+                `Salin kode di bawah ini ke Google Sheets Anda:\n` +
+                `1. Buka Google Sheets > Ekstensi > Apps Script\n` +
+                `2. Tempel kode di bawah ini\n` +
+                `3. Klik Deploy > New Deployment > Web App (Who has access: Anyone)\n` +
+                `4. Salin Web App URL dan ketik:\n` +
+                `\`!setsheet <URL_ANDA>\`\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                `\`\`\`javascript\n${GOOGLE_APPS_SCRIPT_TEMPLATE}\`\`\``,
+            },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        // Sub-command: Uji Coba Webhook (!setsheet test)
+        if (subCommand.toLowerCase() === "test") {
+          if (!user.sheetWebhookUrl) {
+            await sock.sendMessage(
+              senderJid,
+              {
+                text: `⚠️ Anda belum memasang Webhook URL Google Sheets. Pasang terlebih dahulu dengan perintah: \`!setsheet <URL>\``,
+              },
+              { quoted: msg }
+            );
+            continue;
+          }
+
+          await sock.sendMessage(
+            senderJid,
+            { text: `⏳ Mengirim baris data pengujian ke Google Spreadsheet Anda...` },
+            { quoted: msg }
+          );
+
+          const testRes = await syncTransactionToGoogleSheet(
+            {
+              id: `TEST-${Date.now().toString().slice(-4)}`,
+              amount: 10000,
+              description: "Uji Coba Sinkronisasi WhatsApp",
+              type: "EXPENSE",
+              date: new Date(),
+              category: { name: "Uji Sistem" },
+            },
+            user
+          );
+
+          if (testRes.synced) {
+            await sock.sendMessage(
+              senderJid,
+              {
+                text: `🎉 *UJI COBA BERHASIL!*\n1 baris data contoh berhasil masuk ke Google Spreadsheet Anda pada tab bulan ini.`,
+              },
+              { quoted: msg }
+            );
+          } else {
+            await sock.sendMessage(
+              senderJid,
+              {
+                text: `❌ *UJI COBA GAGAL:*\n${testRes.error || "Pastikan Web App di-deploy dengan akses 'Anyone'."}`,
+              },
+              { quoted: msg }
+            );
+          }
+          continue;
+        }
+
+        // Sub-command: Nonaktifkan (!setsheet off)
+        const isOff =
+          subCommand.toLowerCase() === "off" ||
+          subCommand.toLowerCase() === "disable" ||
+          subCommand.toLowerCase() === "nonaktif";
+
+        if (isOff) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              sheetWebhookUrl: null,
+              autoSyncSheet: false,
+            },
+          });
+
+          await sock.sendMessage(
+            senderJid,
+            { text: `✅ Auto-sync ke Google Spreadsheet telah dinonaktifkan.` },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        // Simpan URL Webhook baru
+        const rawUrl = subCommand;
+        if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+          await sock.sendMessage(
+            senderJid,
+            {
+              text: `⚠️ URL Webhook tidak valid. Pastikan dimulai dengan \`https://script.google.com/macros/s/.../exec\``,
+            },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        const updatedUser = await prisma.user.update({
           where: { id: user.id },
           data: {
-            sheetWebhookUrl: isOff ? null : rawUrl,
-            autoSyncSheet: !isOff,
+            sheetWebhookUrl: rawUrl,
+            autoSyncSheet: true,
           },
         });
+
+        // Langsung kirim 1 baris test koneksi otomatis
+        void syncTransactionToGoogleSheet(
+          {
+            id: `PING-${Date.now().toString().slice(-4)}`,
+            amount: 0,
+            description: "PingKas Auto-Sync Terhubung",
+            type: "INCOME",
+            date: new Date(),
+            category: { name: "Aktivasi" },
+          },
+          updatedUser
+        );
 
         await sock.sendMessage(
           senderJid,
           {
-            text: isOff
-              ? `✅ Auto-sync ke Google Sheets telah dinonaktifkan.`
-              : `✅ *Auto-sync Google Sheets Aktif!*\nSetiap transaksi baru Anda akan otomatis terkirim dan tercatat ke Google Spreadsheet Anda secara real-time.`,
+            text:
+              `✅ *AUTO-SYNC GOOGLE SHEETS BERHASIL DIAKTIFKAN!*\n` +
+              `━━━━━━━━━━━━━━━━━━━━\n` +
+              `🔗 URL: \`${rawUrl}\`\n\n` +
+              `Setiap transaksi yang Anda catat lewat WA, Web, atau Mobile akan otomatis tersimpan ke tab bulan berjalan di Google Spreadsheet Anda.\n\n` +
+              `💡 Ketik \`!setsheet test\` kapan saja untuk menguji koneksi.`,
           },
-          { quoted: msg },
+          { quoted: msg }
         );
         continue;
       }

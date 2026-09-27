@@ -399,6 +399,21 @@ function doGet(e) {
 
 ---
 
+### D. Pengaturan Auto-Sync Spreadsheet Langsung via Chat WhatsApp
+
+Pengguna dapat mengonfigurasi, menguji, dan mengaktifkan integrasi Google Sheets langsung dari aplikasi WhatsApp tanpa perlu membuka Web Portal:
+
+| Perintah WhatsApp | Fungsi | Contoh Penggunaan |
+|---|---|---|
+| `!setsheet` | Cek status integrasi Google Sheets aktif/nonaktif & panduan | `!setsheet` |
+| `!setsheet <URL>` | Pasang / Update Webhook URL Google Apps Script dan otomatis aktifkan sync | `!setsheet https://script.google.com/macros/s/.../exec` |
+| `!setsheet test` | Kirim 1 baris transaksi uji coba ke spreadsheet untuk verifikasi | `!setsheet test` |
+| `!setsheet code` | Minta bot mengirimkan template kode Google Apps Script siap copy-paste | `!setsheet code` |
+| `!setsheet off` | Menonaktifkan auto-sync Google Sheets | `!setsheet off` |
+| `rekap excel` / `export` | Minta tautan unduh instan file `.csv` rekapitulasi keuangan | `rekap excel` |
+
+---
+
 ## 6. WhatsApp Bot Engine: Fitur Group & Keamanan Akses
 
 ### A. Fitur Pencatatan di WhatsApp Group via Tag / Mention (`@bot`)
