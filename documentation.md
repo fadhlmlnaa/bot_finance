@@ -527,7 +527,7 @@ class InitialBalanceService {
 | `GET` | `/api/user/sheet-settings` | Ambil Webhook URL & status auto-sync Google Sheets user |
 | `POST` | `/api/user/sheet-settings` | Simpan / update Webhook URL & toggle auto-sync Google Sheets |
 | `POST` | `/api/user/sheet-settings/test` | Kirim baris sampel untuk menguji koneksi Webhook Google Sheets |
-| `GET` | `/api/categories` | Ambil daftar kategori |
+| `POST` | `/api/admin/login` | **Admin:** Verifikasi login admin dengan Nomor WhatsApp dan Password keamanan |
 | `POST` | `/api/admin/subscription` | **Admin:** Edit kuota maks transaksi, paket, masa aktif, dan status admin user |
 | `GET` | `/api/admin/subscription` | **Admin:** Lihat daftar seluruh user dan penggunaan kuotanya |
 | `GET` | `/api/admin/dashboard` | **Admin:** Metrik analitik & statistik Dashboard Direktur |

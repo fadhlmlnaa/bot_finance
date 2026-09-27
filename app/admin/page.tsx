@@ -5,7 +5,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import {
-
   ShieldCheck,
   Activity,
   Users,
@@ -24,6 +23,9 @@ import {
   Lock,
   LogOut,
   AlertCircle,
+  Eye,
+  EyeOff,
+  Key,
 } from "lucide-react";
 
 interface HealthEngineData {
@@ -99,6 +101,8 @@ export default function AdminDashboardPage() {
   // Admin Auth Gatekeeper state
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminPhoneInput, setAdminPhoneInput] = useState("");
+  const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isVerifyingAdmin, setIsVerifyingAdmin] = useState(false);
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
   const [authenticatedAdmin, setAuthenticatedAdmin] = useState<{
@@ -177,36 +181,44 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  const handleAdminLogin = async (e?: React.FormEvent, customPhone?: string) => {
+  const handleAdminLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const phone = customPhone || adminPhoneInput;
-    if (!phone.trim()) return;
+    const phone = adminPhoneInput.trim();
+    const password = adminPasswordInput.trim();
+
+    if (!phone) {
+      setAdminAuthError("Nomor WhatsApp admin harus diisi.");
+      return;
+    }
+
+    if (!password) {
+      setAdminAuthError("Password admin harus diisi.");
+      return;
+    }
 
     setIsVerifyingAdmin(true);
     setAdminAuthError(null);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber: phone }),
+        body: JSON.stringify({
+          phoneNumber: phone,
+          password: password,
+        }),
       });
 
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || "Gagal memverifikasi nomor");
-      }
-
-      if (!json.data?.user?.isAdmin) {
-        throw new Error(
-          `⛔ Akses Ditolak: Nomor +${json.data.user.phoneNumber} tidak memiliki hak akses Admin.`
-        );
+        throw new Error(json.message || "Gagal masuk sebagai admin");
       }
 
       // Success
       setIsAdminLoggedIn(true);
       setAuthenticatedAdmin(json.data.user);
       sessionStorage.setItem("pingkas_admin_phone", json.data.user.phoneNumber);
+      sessionStorage.setItem("pingkas_admin_token", json.data.token);
 
       // Load data
       await Promise.all([fetchHealth(), fetchDashboardStats(), fetchUsers()]);
@@ -219,8 +231,10 @@ export default function AdminDashboardPage() {
 
   const handleAdminLogout = () => {
     sessionStorage.removeItem("pingkas_admin_phone");
+    sessionStorage.removeItem("pingkas_admin_token");
     setIsAdminLoggedIn(false);
     setAuthenticatedAdmin(null);
+    setAdminPasswordInput("");
   };
 
   // Check existing session
@@ -229,11 +243,7 @@ export default function AdminDashboardPage() {
       const savedAdmin = sessionStorage.getItem("pingkas_admin_phone");
       if (savedAdmin) {
         try {
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phoneNumber: savedAdmin }),
-          });
+          const res = await fetch(`/api/auth/me?phoneNumber=${encodeURIComponent(savedAdmin)}`);
           const json = await res.json();
           if (json.success && json.data?.user?.isAdmin) {
             setIsAdminLoggedIn(true);
@@ -241,9 +251,11 @@ export default function AdminDashboardPage() {
             await Promise.all([fetchHealth(), fetchDashboardStats(), fetchUsers()]);
           } else {
             sessionStorage.removeItem("pingkas_admin_phone");
+            sessionStorage.removeItem("pingkas_admin_token");
           }
         } catch {
           sessionStorage.removeItem("pingkas_admin_phone");
+          sessionStorage.removeItem("pingkas_admin_token");
         }
       }
     };
@@ -346,7 +358,7 @@ export default function AdminDashboardPage() {
                 PingKas Engine Center
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Area terbatas untuk Direktur / Admin. Silakan masukkan nomor WhatsApp yang terdaftar sebagai admin.
+                Area terbatas untuk Direktur / Admin. Masukkan nomor WhatsApp admin dan password keamanan.
               </p>
             </div>
 
@@ -374,17 +386,45 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Password Admin
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    placeholder="Masukkan password admin..."
+                    value={adminPasswordInput}
+                    onChange={(e) => setAdminPasswordInput(e.target.value)}
+                    className="w-full pl-4 pr-11 py-3 text-sm font-semibold rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                    title={showPassword ? "Sembunyikan password" : "Lihat password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={isVerifyingAdmin}
-                className="w-full py-3.5 text-sm font-extrabold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 text-sm font-extrabold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2 mt-2"
               >
                 {isVerifyingAdmin ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Verifikasi & Buka Admin Center</span>
+                    <Key className="w-4 h-4" />
+                    <span>Masuk ke Admin Center</span>
                   </>
                 )}
               </button>
