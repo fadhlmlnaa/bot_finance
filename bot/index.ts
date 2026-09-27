@@ -41,6 +41,9 @@ function isPhoneNumberAllowed(rawNumber: string): boolean {
   });
 }
 
+// Track recently processed message IDs to avoid duplicates
+const processedMsgIds = new Set<string>();
+
 async function startWhatsAppBot() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
@@ -89,6 +92,7 @@ async function startWhatsAppBot() {
       }
     } else if (connection === "open") {
       console.log("\n✅ WHATSAPP BOT BERHASIL TERHUBUNG!");
+      console.log(`📱 Nomor Akun Bot: ${sock.user?.id?.split(":")[0]?.split("@")[0] || "Unknown"}`);
       console.log("🚀 Siap menerima pesan pencatatan keuangan.\n");
     }
   });
@@ -101,24 +105,26 @@ async function startWhatsAppBot() {
     if (type !== "notify") return;
 
     for (const msg of messages) {
-      // Ignore broadcast/status updates
-      if (!msg.message || msg.key.remoteJid?.endsWith("@broadcast")) {
+      if (!msg.message) continue;
+
+      const msgId = msg.key.id;
+      if (msgId && processedMsgIds.has(msgId)) continue;
+      if (msgId) {
+        processedMsgIds.add(msgId);
+        // keep set memory small
+        if (processedMsgIds.size > 2000) {
+          const firstKey = processedMsgIds.values().next().value;
+          if (firstKey) processedMsgIds.delete(firstKey);
+        }
+      }
+
+      // Ignore broadcast or status updates
+      if (msg.key.remoteJid?.endsWith("@broadcast")) {
         continue;
       }
 
-      // Handle both incoming chats and "Message Yourself" (fromMe)
       const senderJid = msg.key.remoteJid;
       if (!senderJid) continue;
-
-      // Extract phone number from JID (e.g., 6281234567890@s.whatsapp.net -> 6281234567890)
-      const phoneNumber = senderJid.split("@")[0].split(":")[0].replace(/\D/g, "");
-      const senderName = msg.pushName || `User ${phoneNumber.slice(-4)}`;
-
-      // Check Whitelist
-      if (!isPhoneNumberAllowed(phoneNumber)) {
-        // Silently ignore messages from non-whitelisted numbers so it doesn't disturb normal chats
-        continue;
-      }
 
       // Extract text content from various message types
       const textMessage =
@@ -129,6 +135,35 @@ async function startWhatsAppBot() {
 
       const trimmedText = textMessage.trim();
       if (!trimmedText) continue;
+
+      // Ignore bot's own automated response messages to prevent reply loops
+      if (
+        trimmedText.startsWith("🤖 *BOT PENCATAT KEUANGAN*") ||
+        trimmedText.startsWith("✅ *TRANSAKSI DICATAT*") ||
+        trimmedText.startsWith("📊 *REKAP KEUANGAN ANDA*") ||
+        trimmedText.includes("Belum ada transaksi yang tercatat")
+      ) {
+        continue;
+      }
+
+      // Resolve phone number:
+      // If user messages self ("Message yourself") or uses LID, resolve to the bot owner's actual phone number
+      const botOwnerNumber = sock.user?.id?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
+      let phoneNumber = senderJid.split("@")[0].split(":")[0].replace(/\D/g, "");
+
+      if (msg.key.fromMe || senderJid.endsWith("@lid")) {
+        if (botOwnerNumber) {
+          phoneNumber = botOwnerNumber;
+        }
+      }
+
+      const senderName = msg.pushName || `User ${phoneNumber.slice(-4)}`;
+
+      // Check Whitelist
+      if (!isPhoneNumberAllowed(phoneNumber)) {
+        console.log(`⛔ Pesan diabaikan: ${phoneNumber} tidak terdaftar di whitelist.`);
+        continue;
+      }
 
       console.log(`📩 Pesan masuk dari ${senderName} (${phoneNumber}): "${trimmedText}"`);
 
@@ -233,7 +268,7 @@ async function startWhatsAppBot() {
       // 3. Parse Financial Transaction Message
       const parsed = parseWhatsAppMessage(trimmedText);
       if (!parsed) {
-        // Not a recognized transaction format, don't spam if irrelevant or in group
+        // Not a recognized transaction format, don't spam if irrelevant
         continue;
       }
 
