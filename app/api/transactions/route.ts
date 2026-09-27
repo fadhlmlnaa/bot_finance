@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { inferCategoryName } from "@/lib/categorizer";
+import { checkUserQuota } from "@/lib/subscription";
 
 export async function POST(request: Request) {
   try {
@@ -48,6 +49,20 @@ export async function POST(request: Request) {
         name: `User ${String(phoneNumber).trim().slice(-4)}`,
       },
     });
+
+    // Check Membership & Monthly Quota
+    const quota = await checkUserQuota(user);
+    if (!quota.isAllowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "QUOTA_EXCEEDED",
+          message: `Kuota transaksi bulanan Anda telah habis (${quota.used}/${quota.maxQuota} transaksi). Silakan upgrade paket langganan Anda.`,
+          quota,
+        },
+        { status: 403 }
+      );
+    }
 
     // Resolve Category
     let resolvedCategoryId: string | null = categoryId || null;

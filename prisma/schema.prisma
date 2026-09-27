@@ -13,13 +13,26 @@ enum TransactionType {
   EXPENSE
 }
 
+enum SubscriptionPlan {
+  FREE
+  PRO
+  UNLIMITED
+}
+
 model User {
-  id           String        @id @default(uuid())
-  phoneNumber  String        @unique
-  name         String?
-  createdAt    DateTime      @default(now())
-  categories   Category[]
-  transactions Transaction[]
+  id              String           @id @default(uuid())
+  phoneNumber     String           @unique
+  name            String?
+  createdAt       DateTime         @default(now())
+
+  // Membership & Quota
+  plan            SubscriptionPlan @default(FREE)
+  subscriptionEnd DateTime?
+  monthlyQuota    Int              @default(20) // Maksimal transaksi per bulan (dapat diubah admin)
+  isAdmin         Boolean          @default(false)
+
+  categories      Category[]
+  transactions    Transaction[]
 }
 
 model Category {

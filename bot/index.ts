@@ -11,6 +11,8 @@ import path from "path";
 import fs from "fs";
 import { prisma } from "../lib/prisma";
 import { inferCategoryName } from "../lib/categorizer";
+import { checkUserQuota, updateUserSubscription } from "../lib/subscription";
+import { SubscriptionPlan } from "@prisma/client";
 import {
   parseWhatsAppMessage,
   formatRupiah,
@@ -166,7 +168,6 @@ server.listen(PORT, () => {
 function isPhoneNumberAllowed(rawNumber: string): boolean {
   const allowedEnv = process.env.ALLOWED_NUMBERS;
   if (!allowedEnv || allowedEnv.trim() === "" || allowedEnv.trim() === "*") {
-    // Whitelist is not set or set to wildcard '*', all numbers allowed
     return true;
   }
 
@@ -178,9 +179,27 @@ function isPhoneNumberAllowed(rawNumber: string): boolean {
 
   return allowedList.some((allowed) => {
     if (cleanSender === allowed) return true;
-    // Normalize Indonesian prefix: 08xx <-> 628xx
     if (allowed.startsWith("0") && cleanSender === "62" + allowed.slice(1)) return true;
     if (cleanSender.startsWith("0") && allowed === "62" + cleanSender.slice(1)) return true;
+    return false;
+  });
+}
+
+/**
+ * Checks if a phone number has Admin privileges
+ */
+function isUserAdmin(phoneNumber: string, botOwnerNumber: string): boolean {
+  if (botOwnerNumber && phoneNumber === botOwnerNumber) return true;
+  const adminEnv = process.env.ADMIN_NUMBERS || "";
+  const adminList = adminEnv
+    .split(",")
+    .map((n) => n.trim().replace(/\D/g, ""))
+    .filter(Boolean);
+
+  return adminList.some((adm) => {
+    if (phoneNumber === adm) return true;
+    if (adm.startsWith("0") && phoneNumber === "62" + adm.slice(1)) return true;
+    if (phoneNumber.startsWith("0") && adm === "62" + phoneNumber.slice(1)) return true;
     return false;
   });
 }
@@ -193,13 +212,6 @@ async function startWhatsAppBot() {
   const { version, isLatest } = await fetchLatestBaileysVersion();
 
   console.log(`🤖 Menggunakan Baileys v${version.join(".")} (Latest: ${isLatest})`);
-
-  const allowedConfig = process.env.ALLOWED_NUMBERS?.trim();
-  if (allowedConfig && allowedConfig !== "*") {
-    console.log(`🔒 Mode Whitelist AKTIF. Nomor yang diizinkan: ${allowedConfig}`);
-  } else {
-    console.log(`🌐 Mode Terbuka (Semua nomor diizinkan).`);
-  }
 
   const sock = makeWASocket({
     version,
@@ -264,14 +276,12 @@ async function startWhatsAppBot() {
       if (msgId && processedMsgIds.has(msgId)) continue;
       if (msgId) {
         processedMsgIds.add(msgId);
-        // keep set memory small
         if (processedMsgIds.size > 2000) {
           const firstKey = processedMsgIds.values().next().value;
           if (firstKey) processedMsgIds.delete(firstKey);
         }
       }
 
-      // Ignore broadcast or status updates
       if (msg.key.remoteJid?.endsWith("@broadcast")) {
         continue;
       }
@@ -279,7 +289,6 @@ async function startWhatsAppBot() {
       const senderJid = msg.key.remoteJid;
       if (!senderJid) continue;
 
-      // Extract text content from various message types
       const textMessage =
         msg.message.conversation ||
         msg.message.extendedTextMessage?.text ||
@@ -289,18 +298,19 @@ async function startWhatsAppBot() {
       const trimmedText = textMessage.trim();
       if (!trimmedText) continue;
 
-      // Ignore bot's own automated response messages to prevent reply loops
+      // Ignore bot's own automated response messages
       if (
         trimmedText.startsWith("🤖 *BOT PENCATAT KEUANGAN*") ||
         trimmedText.startsWith("✅ *TRANSAKSI DICATAT*") ||
         trimmedText.startsWith("📊 *REKAP KEUANGAN ANDA*") ||
+        trimmedText.startsWith("👑 *STATUS MEMBERSHIP*") ||
+        trimmedText.startsWith("📦 *PAKET MEMBERSHIP*") ||
+        trimmedText.startsWith("⛔ *KUOTA TRANSAKSI HABIS*") ||
         trimmedText.includes("Belum ada transaksi yang tercatat")
       ) {
         continue;
       }
 
-      // Resolve phone number:
-      // If user messages self ("Message yourself") or uses LID, resolve to the bot owner's actual phone number
       const botOwnerNumber = sock.user?.id?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
       let phoneNumber = senderJid.split("@")[0].split(":")[0].replace(/\D/g, "");
 
@@ -320,6 +330,123 @@ async function startWhatsAppBot() {
 
       console.log(`📩 Pesan masuk dari ${senderName} (${phoneNumber}): "${trimmedText}"`);
 
+      // ==========================================
+      // ADMIN COMMANDS (Khusus Owner / Admin)
+      // ==========================================
+      const isAdmin = isUserAdmin(phoneNumber, botOwnerNumber);
+
+      // 1. Admin Command: !upgrade <nomor> <hari> <paket> [custom_kuota]
+      // Contoh: !upgrade 62812345678 30 PRO atau !upgrade 62812345678 30 UNLIMITED
+      if (isAdmin && trimmedText.startsWith("!upgrade")) {
+        const parts = trimmedText.split(/\s+/);
+        if (parts.length < 4) {
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `⚠️ *Format Admin Upgrade:*\n` +
+                `\`!upgrade <nomor_hp> <jumlah_hari> <FREE|PRO|UNLIMITED> [custom_kuota]\`\n\n` +
+                `*Contoh:*\n` +
+                `• \`!upgrade 62812345678 30 PRO\`\n` +
+                `• \`!upgrade 62812345678 30 UNLIMITED\`\n` +
+                `• \`!upgrade 62812345678 30 PRO 500\` (Kustom kuota 500)`,
+            },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        const targetPhone = parts[1].replace(/\D/g, "");
+        const days = parseInt(parts[2]) || 30;
+        const rawPlan = parts[3].toUpperCase();
+        const customQuota = parts[4] ? parseInt(parts[4]) : undefined;
+
+        if (!Object.values(SubscriptionPlan).includes(rawPlan as SubscriptionPlan)) {
+          await sock.sendMessage(
+            senderJid,
+            { text: `❌ Paket tidak valid. Pilih: FREE, PRO, atau UNLIMITED.` },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        try {
+          const updated = await updateUserSubscription({
+            phoneNumber: targetPhone,
+            plan: rawPlan as SubscriptionPlan,
+            durationDays: days,
+            customQuota,
+          });
+
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `✅ *BERHASIL AKTIVASI MEMBERSHIP*\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
+                `👤 User     : *${targetPhone}*\n` +
+                `📦 Paket    : *${updated.plan}*\n` +
+                `📊 Kuota    : *${updated.monthlyQuota} transaksi/bln*\n` +
+                `⏳ Aktif s/d: *${updated.subscriptionEnd ? formatDateTime(updated.subscriptionEnd) : "Permanen"}*\n` +
+                `━━━━━━━━━━━━━━━━━━━━`,
+            },
+            { quoted: msg }
+          );
+        } catch (err) {
+          console.error("Gagal upgrade:", err);
+          await sock.sendMessage(senderJid, { text: `❌ Gagal upgrade user: ${err}` }, { quoted: msg });
+        }
+        continue;
+      }
+
+      // 2. Admin Command: !setkuota <nomor> <jumlah_kuota>
+      if (isAdmin && trimmedText.startsWith("!setkuota")) {
+        const parts = trimmedText.split(/\s+/);
+        if (parts.length < 3) {
+          await sock.sendMessage(
+            senderJid,
+            { text: `⚠️ *Format:*\n\`!setkuota <nomor_hp> <jumlah_kuota>\`\nContoh: \`!setkuota 62812345678 300\`` },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        const targetPhone = parts[1].replace(/\D/g, "");
+        const newQuota = parseInt(parts[2]);
+
+        if (isNaN(newQuota) || newQuota <= 0) {
+          await sock.sendMessage(senderJid, { text: `❌ Jumlah kuota harus angka positif.` }, { quoted: msg });
+          continue;
+        }
+
+        try {
+          const user = await prisma.user.update({
+            where: { phoneNumber: targetPhone },
+            data: { monthlyQuota: newQuota },
+          });
+
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `✅ *KUOTA USER DIPERBARUI*\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
+                `👤 User  : *${user.phoneNumber}*\n` +
+                `📊 Kuota : *${user.monthlyQuota} transaksi/bulan*\n` +
+                `━━━━━━━━━━━━━━━━━━━━`,
+            },
+            { quoted: msg }
+          );
+        } catch (err) {
+          await sock.sendMessage(senderJid, { text: `❌ User tidak ditemukan di database.` }, { quoted: msg });
+        }
+        continue;
+      }
+
+      // ==========================================
+      // USER COMMANDS
+      // ==========================================
+
       // 1. Command: Help / Bantuan
       if (/^(help|bantuan|menu|info)$/i.test(trimmedText)) {
         const helpMessage =
@@ -332,8 +459,10 @@ async function startWhatsAppBot() {
           `*Cara Mencatat Pemasukan (+):*\n` +
           `• \`+5000000 Gaji bulanan\`\n` +
           `• \`+50k Bonus project\`\n\n` +
-          `*Perintah Lainnya:*\n` +
-          `• \`rekap\` / \`laporan\` : Lihat ringkasan saldo & kategori\n` +
+          `*Perintah Fitur & Membership:*\n` +
+          `• \`rekap\` : Lihat ringkasan saldo & kategori\n` +
+          `• \`status\` / \`kuota\` : Cek sisa kuota & masa aktif\n` +
+          `• \`paket\` : Info harga langganan PRO/UNLIMITED\n` +
           `• \`bantuan\` : Tampilkan menu ini\n` +
           `━━━━━━━━━━━━━━━━━━━━`;
 
@@ -341,7 +470,63 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 2. Command: Rekapitulasi / Summary
+      // 2. Command: Info Paket / Upgrade
+      if (/^(paket|harga|upgrade|langganan|premium)$/i.test(trimmedText)) {
+        const pricingText =
+          `📦 *PILIHAN PAKET MEMBERSHIP*\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `1️⃣ *FREE* (Gratis)\n` +
+          `• Kuota: *20 transaksi / bulan*\n` +
+          `• Biaya: *Rp 0*\n\n` +
+          `2️⃣ *PRO* (Rekomendasi ⭐)\n` +
+          `• Kuota: *200 transaksi / bulan*\n` +
+          `• Biaya: *Rp 15.000 / 30 hari*\n\n` +
+          `3️⃣ *UNLIMITED* (Tanpa Batas 🚀)\n` +
+          `• Kuota: *Tanpa batas transaksi (∞)*\n` +
+          `• Biaya: *Rp 29.000 / 30 hari*\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `💳 *Cara Berlangganan:*\n` +
+          `1. Hubungi Admin atau transfer sesuai nominal paket.\n` +
+          `2. Admin akan langsung mengaktifkan akun Anda.\n` +
+          `━━━━━━━━━━━━━━━━━━━━`;
+
+        await sock.sendMessage(senderJid, { text: pricingText }, { quoted: msg });
+        continue;
+      }
+
+      // 3. Command: Status & Sisa Kuota
+      if (/^(status|kuota|membership|akun)$/i.test(trimmedText)) {
+        try {
+          const user = await prisma.user.upsert({
+            where: { phoneNumber },
+            update: { name: senderName },
+            create: { phoneNumber, name: senderName },
+          });
+
+          const quota = await checkUserQuota(user);
+          const expiryText = quota.expiresAt ? formatDateTime(quota.expiresAt) : "Permanen (Free)";
+
+          const statusText =
+            `👑 *STATUS MEMBERSHIP ANDA*\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `👤 Pengguna  : *${user.name || senderName}*\n` +
+            `📱 Nomor     : *${user.phoneNumber}*\n` +
+            `📦 Paket     : *${quota.plan}*\n` +
+            `📊 Pemakaian : *${quota.used} / ${quota.isUnlimited ? "∞" : quota.maxQuota} transaksi*\n` +
+            `💡 Sisa Kuota: *${quota.isUnlimited ? "Tanpa Batas (∞)" : quota.remaining + " transaksi"}*\n` +
+            `⏳ Masa Aktif: *${expiryText}*\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `_Ketik *paket* untuk melihat pilihan upgrade._`;
+
+          await sock.sendMessage(senderJid, { text: statusText }, { quoted: msg });
+        } catch (err) {
+          console.error("Gagal cek status:", err);
+          await sock.sendMessage(senderJid, { text: "❌ Terjadi kendala saat memeriksa status kuota." }, { quoted: msg });
+        }
+        continue;
+      }
+
+      // 4. Command: Rekapitulasi / Summary
       if (/^(rekap|laporan|summary|saldo)$/i.test(trimmedText)) {
         try {
           const user = await prisma.user.findUnique({
@@ -418,10 +603,11 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 3. Parse Financial Transaction Message
+      // ==========================================
+      // 5. TRANSACTION RECORDING WITH QUOTA CHECK
+      // ==========================================
       const parsed = parseWhatsAppMessage(trimmedText);
       if (!parsed) {
-        // Not a recognized transaction format, don't spam if irrelevant
         continue;
       }
 
@@ -435,6 +621,22 @@ async function startWhatsAppBot() {
             name: senderName,
           },
         });
+
+        // Check Membership Quota
+        const quota = await checkUserQuota(user);
+        if (!quota.isAllowed) {
+          const quotaExceededMsg =
+            `⛔ *KUOTA TRANSAKSI HABIS*\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `Penggunaan bulan ini: *${quota.used}/${quota.maxQuota} transaksi*.\n` +
+            `Paket Anda saat ini: *${quota.plan}*\n\n` +
+            `Transaksi *tidak dapat dicatat* karena telah mencapai batas kuota bulanan.\n\n` +
+            `👉 Ketik *paket* untuk melihat info upgrade ke paket *PRO* atau *UNLIMITED*.\n` +
+            `━━━━━━━━━━━━━━━━━━━━`;
+
+          await sock.sendMessage(senderJid, { text: quotaExceededMsg }, { quoted: msg });
+          continue;
+        }
 
         // Determine category
         const categoryName = inferCategoryName(parsed.description, parsed.type);
@@ -472,6 +674,8 @@ async function startWhatsAppBot() {
         const isIncome = parsed.type === "INCOME";
         const icon = isIncome ? "💰" : "💸";
         const typeLabel = isIncome ? "Pemasukan (+)" : "Pengeluaran (-)";
+        const newUsed = quota.used + 1;
+        const quotaDisplay = quota.isUnlimited ? "∞" : `${newUsed}/${quota.maxQuota}`;
 
         const receiptMessage =
           `✅ *TRANSAKSI DICATAT*\n` +
@@ -482,6 +686,7 @@ async function startWhatsAppBot() {
           `${icon} Tipe     : *${typeLabel}*\n` +
           `💵 Nominal  : *${formatRupiah(transaction.amount)}*\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
+          `📊 Kuota Bln Ini : *${quotaDisplay}* (${quota.plan})\n` +
           `_Ketik *rekap* untuk melihat total saldo._`;
 
         await sock.sendMessage(senderJid, { text: receiptMessage }, { quoted: msg });

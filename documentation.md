@@ -1,6 +1,6 @@
 # Personal Finance Tracker Backend Documentation
 
-Dokumentasi arsitektur, skema database, API endpoints, sistem kategorisasi otomatis, rekapitulasi, serta panduan menjalankan WhatsApp Bot (Baileys) dan Flutter Mobile App.
+Dokumentasi arsitektur, skema database, API endpoints, sistem Membership/Kuota Bulanan, kategorisasi otomatis, rekapitulasi, serta panduan WhatsApp Bot (Baileys) dan Flutter Mobile App.
 
 ---
 
@@ -9,11 +9,9 @@ Dokumentasi arsitektur, skema database, API endpoints, sistem kategorisasi otoma
 - **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
 - **Database ORM**: Prisma ORM
-- **Database Engine**: PostgreSQL
+- **Database Engine**: PostgreSQL (Supabase Connection Pooler)
 - **WhatsApp Engine**: `@whiskeysockets/baileys` (Multi-device QR authentication)
-- **Integrations Target**:
-  - WhatsApp Bot (`bot/index.ts`)
-  - Mobile App (Flutter)
+- **Deployment**: Next.js API (Vercel) + WA Bot Worker (Render / Docker)
 
 ---
 
@@ -27,8 +25,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum TransactionType {
@@ -36,13 +35,26 @@ enum TransactionType {
   EXPENSE
 }
 
+enum SubscriptionPlan {
+  FREE
+  PRO
+  UNLIMITED
+}
+
 model User {
-  id           String        @id @default(uuid())
-  phoneNumber  String        @unique
-  name         String?
-  createdAt    DateTime      @default(now())
-  categories   Category[]
-  transactions Transaction[]
+  id              String           @id @default(uuid())
+  phoneNumber     String           @unique
+  name            String?
+  createdAt       DateTime         @default(now())
+
+  // Membership & Quota
+  plan            SubscriptionPlan @default(FREE)
+  subscriptionEnd DateTime?
+  monthlyQuota    Int              @default(20) // Maksimal transaksi per bulan
+  isAdmin         Boolean          @default(false)
+
+  categories      Category[]
+  transactions    Transaction[]
 }
 
 model Category {
@@ -69,161 +81,91 @@ model Transaction {
 
 ---
 
-## 3. Sistem Auto-Categorization (Klasifikasi Otomatis)
+## 3. Sistem Membership & Kuota Transaksi Bulanan
 
-Saat user mengirimkan transaksi dari WhatsApp atau Mobile App, sistem menentukan Kategori melalui 2 cara:
+Setiap user memiliki kuota pencatatan transaksi yang dihitung dari awal bulan berjalan (tanggal 1 s/d akhir bulan):
 
-1. **Explicit Category**: Pengirim mengirimkan field `category` atau `categoryName` (contoh: `"Makanan"`, `"Kendaraan"`).
-2. **Smart Auto-Categorization**: Jika kategori tidak dikirimkan, backend secara otomatis mendeteksi kata kunci dari deskripsi transaksi:
-   - **Makanan & Minuman**: `sate`, `nasi`, `makan`, `ayam`, `bakso`, `kopi`, `cafe`, `teh`, `warung`, `resto`, `snack`, dll.
-   - **Transportasi & Kendaraan**: `parkir`, `bensin`, `pertalite`, `pertamax`, `tol`, `gojek`, `grab`, `ojol`, `servis`, dll.
-   - **Tagihan & Utilitas**: `listrik`, `pln`, `air`, `wifi`, `pulsa`, `kuota`, `sewa`, `kontrakan`, `kost`, dll.
-   - **Belanja**: `belanja`, `baju`, `sepatu`, `supermarket`, `indomaret`, `alfamart`, `shopee`, `tokopedia`, dll.
-   - **Kesehatan**: `obat`, `apotek`, `dokter`, `rumah sakit`, `vitamin`, dll.
-   - **Gaji / Pemasukan**: `gaji`, `bonus`, `thr`, `freelance`, `proyek`, `dividen`, `cashback`, dll.
+| Paket | Default Kuota | Masa Aktif | Keterangan |
+|---|---|---|---|
+| **FREE** | **20 transaksi** / bulan | Selamanya | Default untuk user baru |
+| **PRO** | **200 transaksi** / bulan | 30 Hari | Dapat di-custom batas kuotanya oleh Admin |
+| **UNLIMITED** | **Tanpa Batas ($\infty$)** | 30 Hari | Kuota tak terhingga |
 
 ---
 
-## 4. WhatsApp Bot Service (Baileys)
+## 4. Cara Aktivasi & Mengatur Kuota (Khusus Admin)
 
-Bot WhatsApp berjalan mandiri via script `npm run bot` yang membaca pesan masuk secara real-time dan membalas langsung ke nomor pengirim.
+Admin dapat mengaktifkan paket atau mengubah kuota user melalui 2 cara:
 
-### A. Cara Menjalankan Bot WhatsApp:
+### Cara A: Langsung via Chat WhatsApp Admin *(Paling Praktis)*
+Kirim chat ke bot dari nomor Admin atau nomor akun bot sendiri:
 
-1. Jalankan perintah di terminal:
-   ```bash
-   npm run bot
+1. **Upgrade Paket User (30 hari)**:
+   ```text
+   !upgrade 628123456789 30 PRO
+   !upgrade 628123456789 30 UNLIMITED
    ```
-2. Scan QR Code yang muncul di terminal menggunakan WhatsApp HP Anda:
-   - Buka WhatsApp di HP
-   - Klik **Titik Tiga** (Android) atau **Pengaturan** (iPhone)
-   - Pilih **Perangkat Tertaut (Linked Devices)** $\rightarrow$ **Tautkan Perangkat**
-   - Arahkan kamera HP ke QR Code terminal
-3. Sesi login akan disimpan otomatis di folder `bot_auth/` (sehingga restart bot tidak perlu scan ulang).
-
-### B. Format Chat yang Didukung:
-
-| Tipe                | Contoh Pesan            | Hasil Klasifikasi & Aksi                                |
-| ------------------- | ----------------------- | ------------------------------------------------------- |
-| **Pengeluaran**     | `Parkir 2000`           | Kategori `Transportasi & Kendaraan`, Expense `Rp 2.000` |
-| **Pengeluaran**     | `Beli sate ayam 50k`    | Kategori `Makanan & Minuman`, Expense `Rp 50.000`       |
-| **Pengeluaran**     | `18rb Kopi susu`        | Kategori `Makanan & Minuman`, Expense `Rp 18.000`       |
-| **Pemasukan (+)**   | `+5000000 Gaji bulanan` | Kategori `Gaji`, Income `Rp 5.000.000`                  |
-| **Pemasukan (+)**   | `+ 1.5jt Proyek Web`    | Kategori `Freelance`, Income `Rp 1.500.000`             |
-| **Rekap / Laporan** | `rekap` atau `laporan`  | Menampilkan total saldo & rincian per kategori          |
-| **Bantuan**         | `bantuan` atau `help`   | Menampilkan panduan format chat                         |
-
-### C. Contoh Struk Balasan Bot:
-
-```text
-✅ *TRANSAKSI DICATAT*
-━━━━━━━━━━━━━━━━━━━━
-📅 Waktu    : 27 Sep 2026, 21.49
-📂 Kategori : *Makanan & Minuman*
-📝 Ket      : Beli sate ayam
-💸 Tipe     : *Pengeluaran (-)*
-💵 Nominal  : *Rp 50.000*
-━━━━━━━━━━━━━━━━━━━━
-_Ketik *rekap* untuk melihat total saldo._
-```
-
-### D. Konfigurasi Whitelist Nomor HP (Keamanan):
-
-Agar bot hanya memproses pesan dari nomor Anda (dan mengabaikan chat dari kontak lain / grup), atur di file `.env`:
-
-```env
-# Masukkan nomor WA yang diizinkan (format 628xxx atau 08xxx, pisahkan dengan koma jika lebih dari 1)
-ALLOWED_NUMBERS="6281234567890,6289876543210"
-```
-
-- **Jika diisi**: Bot hanya akan merespon dan mencatat transaksi dari nomor yang terdaftar di whitelist. Pesan dari nomor lain akan diabaikan secara senyap tanpa mengganggu chat biasa.
-- **Jika dikosongkan atau `*`**: Mode terbuka (semua nomor yang chat akan otomatis dicatat datanya secara terpisah per user).
+2. **Upgrade Paket dengan Custom Kuota**:
+   ```text
+   !upgrade 628123456789 30 PRO 500
+   ```
+   *(Mengaktifkan paket PRO untuk nomor tersebut dengan kuota 500 transaksi selama 30 hari).*
+3. **Ubah Batas Kuota Bulanan Saja**:
+   ```text
+   !setkuota 628123456789 100
+   ```
+   *(Mengubah batas kuota nomor tersebut menjadi 100 transaksi/bulan).*
 
 ---
 
-## 5. API Endpoints
+### Cara B: Melalui REST API Admin (`POST /api/admin/subscription`)
 
-Base URL: `http://localhost:3000`
+#### Request:
+```bash
+curl -X POST http://localhost:3000/api/admin/subscription \
+  -H "Content-Type: application/json" \
+  -d '{
+    "phoneNumber": "628123456789",
+    "plan": "PRO",
+    "durationDays": 30,
+    "customQuota": 300
+  }'
+```
 
-### A. `POST /api/transactions`
-
-Mencatat transaksi baru (upsert user & create category).
-
+#### Response:
 ```json
-// Request Body:
 {
-  "phoneNumber": "6281234567890",
-  "description": "Beli sate ayam",
-  "amount": 50000,
-  "type": "EXPENSE"
-}
-```
-
-### B. `GET /api/transactions`
-
-Mengambil riwayat transaksi terurut descending berdasarkan tanggal.
-
-- Query params: `?phoneNumber=...`, `?category=...`, `?type=...`
-
-### C. `GET /api/transactions/summary`
-
-Mengambil rekap total saldo dan breakdown pengeluaran/pemasukan per kategori.
-
-- Query params: `?phoneNumber=6281234567890`
-
-### D. `GET /api/categories` & `POST /api/categories`
-
-Mengambil atau membuat kategori transaksi.
-
----
-
-## 6. Integrasi Flutter Mobile Apps
-
-### Model Dart (`TransactionModel.dart`):
-
-```dart
-class TransactionModel {
-  final String id;
-  final double amount;
-  final String description;
-  final String type; // 'INCOME' | 'EXPENSE'
-  final DateTime date;
-  final String? categoryName;
-
-  TransactionModel({
-    required this.id,
-    required this.amount,
-    required this.description,
-    required this.type,
-    required this.date,
-    this.categoryName,
-  });
-
-  factory TransactionModel.fromJson(Map<String, dynamic> json) {
-    return TransactionModel(
-      id: json['id'],
-      amount: (json['amount'] as num).toDouble(),
-      description: json['description'],
-      type: json['type'],
-      date: DateTime.parse(json['date']),
-      categoryName: json['category'] != null ? json['category']['name'] : 'Tanpa Kategori',
-    );
+  "success": true,
+  "message": "Subscription for 628123456789 successfully updated to PRO",
+  "user": {
+    "phoneNumber": "628123456789",
+    "plan": "PRO",
+    "monthlyQuota": 300,
+    "subscriptionEnd": "2026-10-27T23:20:00.000Z"
   }
 }
 ```
 
 ---
 
-## 7. Cara Menjalankan Project
+## 5. Perintah WhatsApp Pengguna
 
-1. **Jalankan Next.js Web/API Server**:
+| Perintah | Deskripsi |
+|---|---|
+| `Parkir 2000` | Catat pengeluaran (cek sisa kuota) |
+| `+5000000 Gaji` | Catat pemasukan (cek sisa kuota) |
+| `rekap` | Lihat total saldo & breakdown per kategori |
+| `status` / `kuota` | Cek sisa kuota, pemakaian bulan ini, dan masa aktif paket |
+| `paket` / `harga` | Info harga dan paket membership |
+| `bantuan` | Menampilkan menu bantuan |
 
-   ```bash
-   npm run dev
-   ```
+---
 
-2. **Jalankan Bot WhatsApp di terminal terpisah**:
-   ```bash
-   npm run bot
-   ```
-   17Agustus!!
+## 6. API Endpoints
+
+- `POST /api/transactions` : Catat transaksi (dengan validasi kuota bulanan).
+- `GET /api/transactions` : Ambil daftar transaksi user.
+- `GET /api/transactions/summary` : Rekapitulasi keuangan & per kategori.
+- `GET /api/categories` : Daftar kategori transaksi.
+- `POST /api/admin/subscription` : Atur paket & kuota user oleh Admin.
+- `GET /api/admin/subscription` : Lihat status pemakaian kuota semua user.
