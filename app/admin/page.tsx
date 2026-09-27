@@ -377,7 +377,7 @@ export default function AdminDashboardPage() {
               <button
                 type="submit"
                 disabled={isVerifyingAdmin}
-                className="w-full py-3.5 text-sm font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 text-sm font-extrabold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {isVerifyingAdmin ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -741,7 +741,7 @@ export default function AdminDashboardPage() {
                 <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Worker Host:</span>
-                    <span className="font-bold text-slate-900 truncate max-w-[140px]">
+                    <span className="font-bold text-slate-900 truncate max-w-35">
                       {healthData?.engines.whatsapp.workerUrl || "Render Worker"}
                     </span>
                   </div>
@@ -866,7 +866,7 @@ export default function AdminDashboardPage() {
                             </div>
                           </td>
 
-                          <td className="py-4 px-3 min-w-[140px]">
+                          <td className="py-4 px-3 min-w-35">
                             <div className="flex items-center justify-between text-xs mb-1 font-semibold">
                               <span>{used} / {max}</span>
                               <span className="text-slate-400">{percentage}%</span>
@@ -1037,7 +1037,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="submit"
                     disabled={isSavingUser}
-                    className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
                   >
                     {isSavingUser ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />

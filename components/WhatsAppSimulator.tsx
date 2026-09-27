@@ -160,7 +160,7 @@ export function WhatsAppSimulator() {
 
 
   return (
-    <div className="w-full max-w-md mx-auto bg-slate-900 rounded-3xl shadow-2xl shadow-orange-500/10 border-4 border-slate-800 overflow-hidden flex flex-col h-[560px]">
+    <div className="w-full max-w-md mx-auto bg-slate-900 rounded-3xl shadow-2xl shadow-orange-500/10 border-4 border-slate-800 overflow-hidden flex flex-col h-140">
       {/* WhatsApp Header */}
       <div className="bg-[#128C7E] px-4 py-3 flex items-center justify-between text-white shadow-md">
         <div className="flex items-center gap-3">

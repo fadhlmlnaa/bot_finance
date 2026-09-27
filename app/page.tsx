@@ -48,7 +48,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-8 pb-20 md:pt-16 md:pb-28">
         {/* Glow ambient background circles */}
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-br from-orange-300/20 via-amber-200/10 to-teal-200/20 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-150 h-150 bg-linear-to-br from-orange-300/20 via-amber-200/10 to-teal-200/20 rounded-full blur-3xl -z-10 pointer-events-none" />
         <div className="absolute -top-12 -left-20 w-96 h-96 bg-orange-400/10 rounded-full blur-2xl -z-10 pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -63,7 +63,7 @@ export default function HomePage() {
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12]">
                 Catat Keuangan Secepat Kirim{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark">
+                <span className="text-transparent bg-clip-text bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark">
                   Chat WhatsApp
                 </span>
               </h1>
@@ -87,7 +87,7 @@ export default function HomePage() {
                   href="https://wa.me/6281234567890?text=Halo%20PingKas,%20saya%20mau%20catat%20keuangan"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-2xl shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-extrabold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-2xl shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
                 >
                   <MessageCircle className="w-5 h-5 fill-white" />
                   <span>Coba Chat di WhatsApp</span>
@@ -133,7 +133,7 @@ export default function HomePage() {
             {/* Right Interactive Simulator */}
             <div className="lg:col-span-5" id="simulasi">
               <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-orange-400 to-teal-400 rounded-3xl blur-xl opacity-30 animate-pulse" />
+                <div className="absolute -inset-1 bg-linear-to-r from-orange-400 to-teal-400 rounded-3xl blur-xl opacity-30 animate-pulse" />
                 <WhatsAppSimulator />
               </div>
             </div>
@@ -163,7 +163,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Feature 1 */}
             <div className="bg-pingkas-cream p-8 rounded-3xl border border-orange-100 hover:border-orange-300 hover:shadow-xl hover:shadow-orange-500/5 transition-all group">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pingkas-orange-light to-pingkas-orange flex items-center justify-center text-white mb-6 shadow-md shadow-orange-500/20 group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-linear-to-tr from-pingkas-orange-light to-pingkas-orange flex items-center justify-center text-white mb-6 shadow-md shadow-orange-500/20 group-hover:scale-110 transition-transform">
                 <Zap className="w-7 h-7" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-3">
@@ -178,7 +178,7 @@ export default function HomePage() {
 
             {/* Feature 2 */}
             <div className="bg-pingkas-cream p-8 rounded-3xl border border-teal-100 hover:border-teal-300 hover:shadow-xl hover:shadow-teal-500/5 transition-all group">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-400 to-pingkas-teal flex items-center justify-center text-white mb-6 shadow-md shadow-teal-500/20 group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-linear-to-tr from-cyan-400 to-pingkas-teal flex items-center justify-center text-white mb-6 shadow-md shadow-teal-500/20 group-hover:scale-110 transition-transform">
                 <PieChart className="w-7 h-7" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-3">
@@ -192,7 +192,7 @@ export default function HomePage() {
 
             {/* Feature 3 */}
             <div className="bg-pingkas-cream p-8 rounded-3xl border border-amber-100 hover:border-amber-300 hover:shadow-xl hover:shadow-amber-500/5 transition-all group">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-200 via-pingkas-gold to-pingkas-gold-dark flex items-center justify-center text-slate-900 mb-6 shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-linear-to-tr from-amber-200 via-pingkas-gold to-pingkas-gold-dark flex items-center justify-center text-slate-900 mb-6 shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
                 <Layers className="w-7 h-7" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-3">
@@ -343,8 +343,8 @@ export default function HomePage() {
             </div>
 
             {/* PRO Plan (Best Seller) */}
-            <div className="bg-gradient-to-b from-[#FFFDF9] to-[#FFF7ED] rounded-3xl p-8 border-2 border-pingkas-orange flex flex-col justify-between shadow-xl shadow-orange-500/10 relative">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pingkas-orange-light to-pingkas-orange text-white text-xs font-black px-4 py-1 rounded-full shadow-md">
+            <div className="bg-linear-to-b from-[#FFFDF9] to-[#FFF7ED] rounded-3xl p-8 border-2 border-pingkas-orange flex flex-col justify-between shadow-xl shadow-orange-500/10 relative">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-linear-to-r from-pingkas-orange-light to-pingkas-orange text-white text-xs font-black px-4 py-1 rounded-full shadow-md">
                 PALING POPULER
               </div>
 
@@ -392,7 +392,7 @@ export default function HomePage() {
                 href="https://wa.me/6281234567890?text=Halo%20Admin,%20saya%20mau%20upgrade%20ke%20paket%20PRO"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3.5 text-center font-bold text-sm text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all"
+                className="w-full py-3.5 text-center font-bold text-sm text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all"
               >
                 Upgrade ke PRO
               </a>
@@ -499,7 +499,7 @@ export default function HomePage() {
       </section>
 
       {/* Bottom CTA Banner */}
-      <section className="py-16 bg-gradient-to-br from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark text-white">
+      <section className="py-16 bg-linear-to-br from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="w-20 h-20 mx-auto">
             <PingKasLogo size={80} showText={false} />

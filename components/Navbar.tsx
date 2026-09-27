@@ -73,7 +73,7 @@ export function Navbar() {
               href="https://wa.me/6281234567890?text=Halo%20PingKas,%20saya%20mau%20catat%20keuangan"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
             >
               <MessageCircle className="w-4 h-4 fill-white" />
               <span>Coba WhatsApp Bot</span>
@@ -147,7 +147,7 @@ export function Navbar() {
               href="https://wa.me/6281234567890?text=Halo%20PingKas"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3 font-bold text-sm text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25"
+              className="flex items-center justify-center gap-2 w-full py-3 font-bold text-sm text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25"
             >
               <MessageCircle className="w-4 h-4" />
               Chat WhatsApp Bot Sekarang
