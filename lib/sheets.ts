@@ -13,6 +13,7 @@ export interface SheetTransactionPayload {
   category: string;
   amount: number;
   signedAmount: number;
+  sheetName: string; // Tab sheet bulanan, contoh: "September 2026"
   rawDate: Date;
 }
 
@@ -20,8 +21,8 @@ export interface SheetTransactionPayload {
  * Standard Google Apps Script code template that users can copy into Google Sheets Extensions -> Apps Script
  */
 export const GOOGLE_APPS_SCRIPT_TEMPLATE = `/**
- * PingKas Google Sheets Auto-Sync Webhook Script
- * 1. Buka Google Spreadsheet baru
+ * PingKas Google Sheets Auto-Sync Webhook Script (Multi-Tab Bulanan Otomatis)
+ * 1. Buka Google Spreadsheet
  * 2. Klik Extensions (Ekstensi) > Apps Script
  * 3. Hapus semua kode dan Paste seluruh kode ini
  * 4. Klik Deploy > New Deployment > Select Type: Web App
@@ -31,9 +32,26 @@ export const GOOGLE_APPS_SCRIPT_TEMPLATE = `/**
 
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var data = JSON.parse(e.postData.contents);
     
-    // Auto-create Header if sheet is empty
+    // Tentukan nama tab sheet per bulan (contoh: "September 2026")
+    var sheetName = data.sheetName || (function() {
+      var months = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      ];
+      var now = new Date();
+      return months[now.getMonth()] + " " + now.getFullYear();
+    })();
+
+    // Cari tab sheet bulan terkait, jika belum ada, buat tab baru secara otomatis!
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+    }
+    
+    // Inisialisasi Header Oranye PingKas jika tab masih kosong
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
         "ID Transaksi",
@@ -51,9 +69,7 @@ function doPost(e) {
       sheet.setFrozenRows(1);
     }
     
-    var data = JSON.parse(e.postData.contents);
-    
-    // Append row
+    // Append baris transaksi baru ke tab bulan terkait
     sheet.appendRow([
       data.id || "TRX-" + new Date().getTime(),
       data.date,
@@ -67,12 +83,17 @@ function doPost(e) {
       data.signedAmount
     ]);
     
-    // Format currency columns (column 9 & 10)
+    // Format kolom nominal (kolom 9 & 10) ke format Rupiah
     var lastRow = sheet.getLastRow();
     sheet.getRange(lastRow, 9, 1, 2).setNumberFormat('"Rp"#,##0');
     
     return ContentService.createTextOutput(
-      JSON.stringify({ success: true, message: "Transaction recorded", row: lastRow })
+      JSON.stringify({
+        success: true,
+        message: "Transaksi berhasil dicatat ke tab sheet " + sheetName,
+        sheet: sheetName,
+        row: lastRow
+      })
     ).setMimeType(ContentService.MimeType.JSON);
     
   } catch (err) {
@@ -127,6 +148,11 @@ export async function syncTransactionToGoogleSheet(
       hour: "2-digit",
       minute: "2-digit",
     });
+    // Format nama sheet tab bulanan: "September 2026"
+    const sheetNameFormatted = d.toLocaleDateString("id-ID", {
+      month: "long",
+      year: "numeric",
+    });
 
     const isExpense = transaction.type === "EXPENSE";
     const payload: SheetTransactionPayload = {
@@ -140,6 +166,7 @@ export async function syncTransactionToGoogleSheet(
       category: transaction.category?.name || "Umum",
       amount: transaction.amount,
       signedAmount: isExpense ? -transaction.amount : transaction.amount,
+      sheetName: sheetNameFormatted,
       rawDate: d,
     };
 

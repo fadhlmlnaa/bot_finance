@@ -4,9 +4,10 @@ import { syncTransactionToGoogleSheet } from "@/lib/sheets";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { webhookUrl, phoneNumber, name } = body;
+    const targetUrl = body.webhookUrl || body.sheetWebhookUrl;
+    const { phoneNumber, name } = body;
 
-    if (!webhookUrl) {
+    if (!targetUrl) {
       return NextResponse.json(
         { success: false, message: "Webhook URL is required for testing" },
         { status: 400 }
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     const testUser = {
       phoneNumber: phoneNumber || "628123456789",
       name: name || "Demo User",
-      sheetWebhookUrl: webhookUrl.trim(),
+      sheetWebhookUrl: targetUrl.trim(),
       autoSyncSheet: true,
     };
 

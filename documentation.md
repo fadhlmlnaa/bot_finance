@@ -425,51 +425,78 @@ Salin kode berikut ke Google Spreadsheet Anda di menu **Ekstensi (Extensions)** 
 
 ```javascript
 /**
- * PINGKAS - Google Apps Script Webhook Listener
- * Script ini menerima payload JSON dari PingKas dan mencatatnya ke Google Sheet aktif.
+ * PINGKAS - Google Apps Script Webhook Listener (Multi-Tab Bulanan Otomatis)
+ * Script ini menerima payload JSON dari PingKas dan otomatis mencatat ke Tab Sheet berdasarkan bulan (contoh: "September 2026").
  */
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var contents = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var data = JSON.parse(e.postData.contents);
 
-    // Inisialisasi Header Otomatis jika Sheet masih kosong
+    // 1. Tentukan nama tab sheet per bulan (contoh: "September 2026")
+    var sheetName = data.sheetName || (function() {
+      var months = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      ];
+      var now = new Date();
+      return months[now.getMonth()] + " " + now.getFullYear();
+    })();
+
+    // 2. Cari tab sheet bulan terkait, jika belum ada, buat tab baru secara otomatis!
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+    }
+
+    // 3. Inisialisasi Header Oranye PingKas jika tab masih kosong
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
         "ID Transaksi",
-        "Waktu & Tanggal",
-        "Tipe Transaksi",
+        "Tanggal",
+        "Jam",
+        "No WhatsApp",
+        "Nama",
+        "Tipe",
         "Kategori",
-        "Deskripsi / Catatan",
-        "Nominal (Angka)",
-        "Nominal Bersih (+/-)",
-        "Pengguna"
+        "Deskripsi",
+        "Nominal (Rp)",
+        "Nominal (+/-)"
       ]);
-      sheet.getRange("A1:H1").setFontWeight("bold").setBackground("#FF6D00").setFontColor("#FFFFFF");
+      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#FF6D00").setFontColor("#FFFFFF");
       sheet.setFrozenRows(1);
     }
 
-    var signedAmount = contents.type === 'INCOME' ? contents.amount : -contents.amount;
-
-    // Catat Baris Transaksi Baru
+    // 4. Catat Baris Transaksi Baru ke tab bulan terkait
     sheet.appendRow([
-      contents.id || "-",
-      contents.formattedDate || new Date().toLocaleString("id-ID"),
-      contents.type === 'INCOME' ? 'PEMASUKAN' : 'PENGELUARAN',
-      contents.category || 'Umum',
-      contents.description || '-',
-      contents.amount || 0,
-      signedAmount,
-      contents.userPhone || '-'
+      data.id || "TRX-" + new Date().getTime(),
+      data.date,
+      data.time,
+      "'" + data.phoneNumber,
+      data.userName || "-",
+      data.type,
+      data.category || "Umum",
+      data.description,
+      data.amount,
+      data.signedAmount
     ]);
 
+    // 5. Format kolom nominal (kolom 9 & 10) ke format Rupiah
+    var lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow, 9, 1, 2).setNumberFormat('"Rp"#,##0');
+
     return ContentService.createTextOutput(
-      JSON.stringify({ status: "success", message: "Transaksi berhasil dicatat ke Spreadsheet" })
+      JSON.stringify({
+        success: true,
+        message: "Transaksi berhasil dicatat ke tab sheet " + sheetName,
+        sheet: sheetName,
+        row: lastRow
+      })
     ).setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     return ContentService.createTextOutput(
-      JSON.stringify({ status: "error", message: error.toString() })
+      JSON.stringify({ success: false, error: error.toString() })
     ).setMimeType(ContentService.MimeType.JSON);
   }
 }
