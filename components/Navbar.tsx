@@ -7,11 +7,11 @@ import { PingKasLogo } from "./PingKasLogo";
 import {
   MessageCircle,
   LayoutDashboard,
-  ShieldCheck,
   Menu,
   X,
   ArrowRight,
 } from "lucide-react";
+
 
 
 export function Navbar() {
@@ -67,19 +67,6 @@ export function Navbar() {
             >
               <LayoutDashboard className="w-4 h-4 text-[#1EA8B8]" />
               Portal User
-            </Link>
-
-            <Link
-              href="/admin"
-              className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-sm font-bold rounded-xl transition-all ${
-                pathname === "/admin"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-              title="Admin & Engine Monitor"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#FF6D00]" />
-              <span className="hidden xl:inline">Admin</span>
             </Link>
 
             <a
@@ -155,14 +142,6 @@ export function Navbar() {
             >
               <LayoutDashboard className="w-4 h-4" />
               Buka Web Portal User
-            </Link>
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 font-bold text-sm text-slate-700 bg-slate-100 rounded-xl"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#FF6D00]" />
-              Admin Dashboard & Engine Status
             </Link>
             <a
               href="https://wa.me/6281234567890?text=Halo%20PingKas"

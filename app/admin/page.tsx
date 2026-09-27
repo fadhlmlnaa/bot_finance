@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import {
+
   ShieldCheck,
   Activity,
   Users,
@@ -20,6 +21,9 @@ import {
   CreditCard,
   Sliders,
   X,
+  Lock,
+  LogOut,
+  AlertCircle,
 } from "lucide-react";
 
 interface HealthEngineData {
@@ -92,8 +96,18 @@ interface UserAdminItem {
 }
 
 export default function AdminDashboardPage() {
-  const [activeTab, setActiveTab] = useState<"HEALTH" | "USERS" | "METRICS">("HEALTH");
+  // Admin Auth Gatekeeper state
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [adminPhoneInput, setAdminPhoneInput] = useState("");
+  const [isVerifyingAdmin, setIsVerifyingAdmin] = useState(false);
+  const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
+  const [authenticatedAdmin, setAuthenticatedAdmin] = useState<{
+    id: string;
+    phoneNumber: string;
+    name: string;
+  } | null>(null);
 
+  const [activeTab, setActiveTab] = useState<"HEALTH" | "USERS">("HEALTH");
 
   // Health data
   const [healthData, setHealthData] = useState<HealthEngineData | null>(null);
@@ -163,21 +177,88 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  useEffect(() => {
-    const initAdmin = async () => {
+  const handleAdminLogin = async (e?: React.FormEvent, customPhone?: string) => {
+    if (e) e.preventDefault();
+    const phone = customPhone || adminPhoneInput;
+    if (!phone.trim()) return;
+
+    setIsVerifyingAdmin(true);
+    setAdminAuthError(null);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: phone }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal memverifikasi nomor");
+      }
+
+      if (!json.data?.user?.isAdmin) {
+        throw new Error(
+          `⛔ Akses Ditolak: Nomor +${json.data.user.phoneNumber} tidak memiliki hak akses Admin.`
+        );
+      }
+
+      // Success
+      setIsAdminLoggedIn(true);
+      setAuthenticatedAdmin(json.data.user);
+      sessionStorage.setItem("pingkas_admin_phone", json.data.user.phoneNumber);
+
+      // Load data
       await Promise.all([fetchHealth(), fetchDashboardStats(), fetchUsers()]);
+    } catch (err: unknown) {
+      setAdminAuthError(err instanceof Error ? err.message : "Gagal memverifikasi admin");
+    } finally {
+      setIsVerifyingAdmin(false);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem("pingkas_admin_phone");
+    setIsAdminLoggedIn(false);
+    setAuthenticatedAdmin(null);
+  };
+
+  // Check existing session
+  useEffect(() => {
+    const initSession = async () => {
+      const savedAdmin = sessionStorage.getItem("pingkas_admin_phone");
+      if (savedAdmin) {
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phoneNumber: savedAdmin }),
+          });
+          const json = await res.json();
+          if (json.success && json.data?.user?.isAdmin) {
+            setIsAdminLoggedIn(true);
+            setAuthenticatedAdmin(json.data.user);
+            await Promise.all([fetchHealth(), fetchDashboardStats(), fetchUsers()]);
+          } else {
+            sessionStorage.removeItem("pingkas_admin_phone");
+          }
+        } catch {
+          sessionStorage.removeItem("pingkas_admin_phone");
+        }
+      }
     };
-    void initAdmin();
+    void initSession();
   }, [fetchHealth, fetchDashboardStats, fetchUsers]);
 
   // Auto refresh interval for health
   useEffect(() => {
-    if (!autoRefreshHealth) return;
+    if (!autoRefreshHealth || !isAdminLoggedIn) return;
     const interval = setInterval(() => {
       void fetchHealth();
     }, 8000);
     return () => clearInterval(interval);
-  }, [autoRefreshHealth, fetchHealth]);
+  }, [autoRefreshHealth, isAdminLoggedIn, fetchHealth]);
+
 
 
   const handleOpenEditModal = (u: UserAdminItem) => {
@@ -251,42 +332,113 @@ export default function AdminDashboardPage() {
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 space-y-8">
-        {/* Admin Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-[#FF9E40] shadow-inner">
-              <ShieldCheck className="w-8 h-8 text-[#FF6D00]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black text-white">Admin & Engine Center</h1>
-                <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-orange-500/20 text-[#FF9E40] border border-orange-500/30">
-                  DIREKTUR CONTROL
-                </span>
+        {!isAdminLoggedIn ? (
+          /* Secure Gatekeeper Screen */
+          <div className="max-w-md mx-auto my-12 bg-white p-8 sm:p-10 rounded-3xl border-2 border-orange-200/80 shadow-2xl shadow-orange-500/10 animate-in fade-in zoom-in-95 duration-200">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 mx-auto mb-4 bg-slate-900 rounded-3xl flex items-center justify-center text-[#FF9E40] shadow-lg shadow-orange-500/20">
+                <Lock className="w-8 h-8 text-[#FF6D00]" />
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Monitoring kondisi 3 Engine (API, Database Supabase, WhatsApp Bot) & Manajemen Kuota Pengguna.
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 text-[#E65100] text-xs font-black uppercase tracking-wider mb-2">
+                <ShieldCheck className="w-3.5 h-3.5" /> Akses Khusus Admin
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                PingKas Engine Center
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Area terbatas untuk Direktur / Admin. Silakan masukkan nomor WhatsApp yang terdaftar sebagai admin.
               </p>
             </div>
-          </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                fetchHealth();
-                fetchDashboardStats();
-                fetchUsers();
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${isRefreshingHealth ? "animate-spin" : ""}`}
-              />
-              <span>Refresh Semua</span>
-            </button>
+            {adminAuthError && (
+              <div className="p-3.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 mb-5 flex items-start gap-2 animate-shake">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{adminAuthError}</span>
+              </div>
+            )}
+
+            <form onSubmit={(e) => handleAdminLogin(e)} className="space-y-4">
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Nomor WhatsApp Admin
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    required
+                    placeholder="Contoh: 08123456789 atau 62812..."
+                    value={adminPhoneInput}
+                    onChange={(e) => setAdminPhoneInput(e.target.value)}
+                    className="w-full px-4 py-3 text-sm font-semibold rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isVerifyingAdmin}
+                className="w-full py-3.5 text-sm font-extrabold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              >
+                {isVerifyingAdmin ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Verifikasi & Buka Admin Center</span>
+                  </>
+                )}
+              </button>
+            </form>
           </div>
-        </div>
+        ) : (
+          /* Authenticated Admin Dashboard */
+          <>
+            {/* Admin Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-[#FF9E40] shadow-inner">
+                  <ShieldCheck className="w-8 h-8 text-[#FF6D00]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-black text-white">Admin & Engine Center</h1>
+                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-orange-500/20 text-[#FF9E40] border border-orange-500/30">
+                      DIREKTUR CONTROL
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Login sebagai: <strong className="text-white">{authenticatedAdmin?.name}</strong> (+{authenticatedAdmin?.phoneNumber})
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    fetchHealth();
+                    fetchDashboardStats();
+                    fetchUsers();
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isRefreshingHealth ? "animate-spin" : ""}`}
+                  />
+                  <span>Refresh Semua</span>
+                </button>
+
+                <button
+                  onClick={handleAdminLogout}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/60 hover:bg-rose-900/80 rounded-xl border border-rose-800/60 transition-colors"
+                  title="Keluar dari Admin"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Keluar Admin</span>
+                </button>
+              </div>
+            </div>
+
 
         {/* Toast alert */}
         {adminToast && (
@@ -897,6 +1049,8 @@ export default function AdminDashboardPage() {
               </form>
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
 

@@ -1,9 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { PingKasLogo } from "./PingKasLogo";
-import { Heart, ShieldCheck, MessageCircle, ExternalLink } from "lucide-react";
-
-
+import { Heart, MessageCircle, ExternalLink } from "lucide-react";
 
 export function Footer() {
   return (
@@ -62,12 +60,6 @@ export function Footer() {
                 <Link href="/portal" className="text-[#1EA8B8] hover:underline flex items-center gap-1 font-semibold">
                   <span>Portal Transaksi User</span>
                   <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin" className="text-[#FF9E40] hover:underline flex items-center gap-1 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Admin & Engine Monitor</span>
                 </Link>
               </li>
               <li>
