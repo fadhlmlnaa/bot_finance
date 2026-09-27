@@ -29,8 +29,8 @@ export function PingKasLogo({
         {showText && (
           <div className="flex flex-col">
             <span className="font-extrabold text-2xl tracking-tight leading-none flex items-center">
-              <span className="text-[#1EA8B8]">Ping</span>
-              <span className="text-[#1995A4]">Kas</span>
+              <span className="text-pingkas-teal">Ping</span>
+              <span className="text-pingkas-teal-dark">Kas</span>
             </span>
             <span className="text-xs font-semibold text-slate-500 tracking-wide mt-0.5">
               Financial Companion
@@ -140,8 +140,8 @@ export function PingKasLogo({
       {mascot}
       <div className="flex flex-col">
         <span className={`font-extrabold ${textSizeClass} tracking-tight leading-none flex items-center`}>
-          <span className="text-[#1EA8B8]">Ping</span>
-          <span className="text-[#1995A4]">Kas</span>
+          <span className="text-pingkas-teal">Ping</span>
+          <span className="text-pingkas-teal-dark">Kas</span>
         </span>
         <span className="text-[11px] font-medium text-slate-500 tracking-wide mt-0.5">
           Catat Cepat via WhatsApp

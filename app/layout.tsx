@@ -24,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`${poppins.variable} font-sans scroll-smooth`}>
-      <body className="min-h-screen flex flex-col bg-[#FAF8F5] text-slate-900 antialiased font-sans">
+      <body className="min-h-screen flex flex-col bg-pingkas-cream text-slate-900 antialiased font-sans">
         {children}
       </body>
     </html>

@@ -42,7 +42,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FAF8F5]">
+    <div className="flex flex-col min-h-screen bg-pingkas-cream">
       <Navbar />
 
       {/* Hero Section */}
@@ -56,14 +56,14 @@ export default function HomePage() {
             {/* Left Content */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               {/* Top pill badge */}
-              <div className="inline-flex items-center gap-2 bg-orange-100/80 border border-orange-200/80 px-4 py-1.5 rounded-full text-xs font-bold text-[#E65100] shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#FF6D00] animate-spin" />
+              <div className="inline-flex items-center gap-2 bg-orange-100/80 border border-orange-200/80 px-4 py-1.5 rounded-full text-xs font-bold text-pingkas-orange-dark shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-pingkas-orange animate-spin" />
                 <span>Asisten Keuangan Cepat via WhatsApp & Mobile</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12]">
                 Catat Keuangan Secepat Kirim{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100]">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark">
                   Chat WhatsApp
                 </span>
               </h1>
@@ -87,7 +87,7 @@ export default function HomePage() {
                   href="https://wa.me/6281234567890?text=Halo%20PingKas,%20saya%20mau%20catat%20keuangan"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-extrabold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-2xl shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-2xl shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
                 >
                   <MessageCircle className="w-5 h-5 fill-white" />
                   <span>Coba Chat di WhatsApp</span>
@@ -96,9 +96,9 @@ export default function HomePage() {
 
                 <Link
                   href="/portal"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-4 text-base font-bold text-slate-800 bg-white hover:bg-teal-50/50 hover:text-[#1EA8B8] hover:border-[#1EA8B8] border-2 border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-4 text-base font-bold text-slate-800 bg-white hover:bg-teal-50/50 hover:text-pingkas-teal hover:border-pingkas-teal border-2 border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all"
                 >
-                  <Smartphone className="w-5 h-5 text-[#1EA8B8]" />
+                  <Smartphone className="w-5 h-5 text-pingkas-teal" />
                   <span>Buka Web Portal User</span>
                 </Link>
               </div>
@@ -112,13 +112,13 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-[#1EA8B8]">100%</div>
+                  <div className="text-2xl font-black text-pingkas-teal">100%</div>
                   <div className="text-xs font-semibold text-slate-500">
                     Auto Sync Real-time
                   </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-[#FF6D00]">20+</div>
+                  <div className="text-2xl font-black text-pingkas-orange">20+</div>
                   <div className="text-xs font-semibold text-slate-500">
                     Kategori Otomatis
                   </div>
@@ -144,7 +144,7 @@ export default function HomePage() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#FF6D00] bg-orange-100/80 px-3.5 py-1.5 rounded-full">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-pingkas-orange bg-orange-100/80 px-3.5 py-1.5 rounded-full">
               Keunggulan PingKas
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -158,8 +158,8 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="bg-[#FAF8F5] p-8 rounded-3xl border border-orange-100 hover:border-orange-300 hover:shadow-xl hover:shadow-orange-500/5 transition-all group">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#FF9E40] to-[#FF6D00] flex items-center justify-center text-white mb-6 shadow-md shadow-orange-500/20 group-hover:scale-110 transition-transform">
+            <div className="bg-pingkas-cream p-8 rounded-3xl border border-orange-100 hover:border-orange-300 hover:shadow-xl hover:shadow-orange-500/5 transition-all group">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pingkas-orange-light to-pingkas-orange flex items-center justify-center text-white mb-6 shadow-md shadow-orange-500/20 group-hover:scale-110 transition-transform">
                 <Zap className="w-7 h-7" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-3">
@@ -173,8 +173,8 @@ export default function HomePage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-[#FAF8F5] p-8 rounded-3xl border border-teal-100 hover:border-teal-300 hover:shadow-xl hover:shadow-teal-500/5 transition-all group">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#22d3ee] to-[#1EA8B8] flex items-center justify-center text-white mb-6 shadow-md shadow-teal-500/20 group-hover:scale-110 transition-transform">
+            <div className="bg-pingkas-cream p-8 rounded-3xl border border-teal-100 hover:border-teal-300 hover:shadow-xl hover:shadow-teal-500/5 transition-all group">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-400 to-pingkas-teal flex items-center justify-center text-white mb-6 shadow-md shadow-teal-500/20 group-hover:scale-110 transition-transform">
                 <PieChart className="w-7 h-7" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-3">
@@ -187,8 +187,8 @@ export default function HomePage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-[#FAF8F5] p-8 rounded-3xl border border-amber-100 hover:border-amber-300 hover:shadow-xl hover:shadow-amber-500/5 transition-all group">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#FFE082] via-[#FFCA28] to-[#FFA000] flex items-center justify-center text-slate-900 mb-6 shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
+            <div className="bg-pingkas-cream p-8 rounded-3xl border border-amber-100 hover:border-amber-300 hover:shadow-xl hover:shadow-amber-500/5 transition-all group">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-200 via-pingkas-gold to-pingkas-gold-dark flex items-center justify-center text-slate-900 mb-6 shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
                 <Layers className="w-7 h-7" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-3">
@@ -205,10 +205,10 @@ export default function HomePage() {
       </section>
 
       {/* 3 Step Workflow */}
-      <section className="py-20 bg-[#FAF8F5]">
+      <section className="py-20 bg-pingkas-cream">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#1EA8B8] bg-teal-100/80 px-3.5 py-1.5 rounded-full">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-pingkas-teal bg-teal-100/80 px-3.5 py-1.5 rounded-full">
               Cara Kerja
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -221,7 +221,7 @@ export default function HomePage() {
               <span className="text-5xl font-black text-orange-200/70 absolute top-4 right-6">
                 01
               </span>
-              <div className="w-12 h-12 rounded-xl bg-orange-100 text-[#FF6D00] font-black text-lg flex items-center justify-center mb-6">
+              <div className="w-12 h-12 rounded-xl bg-orange-100 text-pingkas-orange font-black text-lg flex items-center justify-center mb-6">
                 1
               </div>
               <h4 className="text-lg font-bold text-slate-900 mb-2">
@@ -237,7 +237,7 @@ export default function HomePage() {
               <span className="text-5xl font-black text-teal-200/70 absolute top-4 right-6">
                 02
               </span>
-              <div className="w-12 h-12 rounded-xl bg-teal-100 text-[#1EA8B8] font-black text-lg flex items-center justify-center mb-6">
+              <div className="w-12 h-12 rounded-xl bg-teal-100 text-pingkas-teal font-black text-lg flex items-center justify-center mb-6">
                 2
               </div>
               <h4 className="text-lg font-bold text-slate-900 mb-2">
@@ -253,7 +253,7 @@ export default function HomePage() {
               <span className="text-5xl font-black text-amber-200/70 absolute top-4 right-6">
                 03
               </span>
-              <div className="w-12 h-12 rounded-xl bg-amber-100 text-[#FFA000] font-black text-lg flex items-center justify-center mb-6">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 text-pingkas-gold-dark font-black text-lg flex items-center justify-center mb-6">
                 3
               </div>
               <h4 className="text-lg font-bold text-slate-900 mb-2">
@@ -275,7 +275,7 @@ export default function HomePage() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#FF6D00] bg-orange-100/80 px-3.5 py-1.5 rounded-full">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-pingkas-orange bg-orange-100/80 px-3.5 py-1.5 rounded-full">
               Pilihan Paket Langganan
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -289,7 +289,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
             {/* FREE Plan */}
-            <div className="bg-[#FAF8F5] rounded-3xl p-8 border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-all">
+            <div className="bg-pingkas-cream rounded-3xl p-8 border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-all">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-slate-900">FREE</h3>
@@ -339,20 +339,20 @@ export default function HomePage() {
             </div>
 
             {/* PRO Plan (Best Seller) */}
-            <div className="bg-gradient-to-b from-[#FFFDF9] to-[#FFF7ED] rounded-3xl p-8 border-2 border-[#FF6D00] flex flex-col justify-between shadow-xl shadow-orange-500/10 relative">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#FF9E40] to-[#FF6D00] text-white text-xs font-black px-4 py-1 rounded-full shadow-md">
+            <div className="bg-gradient-to-b from-[#FFFDF9] to-[#FFF7ED] rounded-3xl p-8 border-2 border-pingkas-orange flex flex-col justify-between shadow-xl shadow-orange-500/10 relative">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pingkas-orange-light to-pingkas-orange text-white text-xs font-black px-4 py-1 rounded-full shadow-md">
                 PALING POPULER
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-slate-900">PRO</h3>
-                  <span className="text-xs font-bold text-[#E65100] bg-orange-100 px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-bold text-pingkas-orange-dark bg-orange-100 px-2.5 py-1 rounded-full">
                     Rekomendasi
                   </span>
                 </div>
                 <div className="mb-6">
-                  <span className="text-4xl font-black text-[#FF6D00]">
+                  <span className="text-4xl font-black text-pingkas-orange">
                     Rp 19.000
                   </span>
                   <span className="text-sm text-slate-500"> / bulan</span>
@@ -364,21 +364,21 @@ export default function HomePage() {
 
                 <ul className="space-y-3 text-sm text-slate-700 mb-8">
                   <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF6D00] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-pingkas-orange shrink-0" />
                     <span>
                       <strong>200 Transaksi</strong> per bulan
                     </span>
                   </li>
                   <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF6D00] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-pingkas-orange shrink-0" />
                     <span>Smart AI Categorizer Prioritas</span>
                   </li>
                   <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF6D00] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-pingkas-orange shrink-0" />
                     <span>Laporan & Export Rekap Keuangan</span>
                   </li>
                   <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#FF6D00] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-pingkas-orange shrink-0" />
                     <span>Respon Bot Cepat Super Prioritas</span>
                   </li>
                 </ul>
@@ -388,20 +388,20 @@ export default function HomePage() {
                 href="https://wa.me/6281234567890?text=Halo%20Admin,%20saya%20mau%20upgrade%20ke%20paket%20PRO"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3.5 text-center font-bold text-sm text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all"
+                className="w-full py-3.5 text-center font-bold text-sm text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all"
               >
                 Upgrade ke PRO
               </a>
             </div>
 
             {/* UNLIMITED Plan */}
-            <div className="bg-[#FAF8F5] rounded-3xl p-8 border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-all">
+            <div className="bg-pingkas-cream rounded-3xl p-8 border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-all">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-slate-900">
                     UNLIMITED
                   </h3>
-                  <span className="text-xs font-bold text-[#1EA8B8] bg-teal-100 px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-bold text-pingkas-teal bg-teal-100 px-2.5 py-1 rounded-full">
                     Bisnis / Power User
                   </span>
                 </div>
@@ -442,7 +442,7 @@ export default function HomePage() {
                 href="https://wa.me/6281234567890?text=Halo%20Admin,%20saya%20mau%20upgrade%20ke%20paket%20UNLIMITED"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3.5 text-center font-bold text-sm text-[#1EA8B8] bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-xl transition-colors"
+                className="w-full py-3.5 text-center font-bold text-sm text-pingkas-teal bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-xl transition-colors"
               >
                 Pilih UNLIMITED
               </a>
@@ -452,10 +452,10 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 bg-[#FAF8F5]">
+      <section id="faq" className="py-20 bg-pingkas-cream">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-[#FF6D00] bg-orange-100/80 px-3.5 py-1.5 rounded-full">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-pingkas-orange bg-orange-100/80 px-3.5 py-1.5 rounded-full">
               Pertanyaan Populer
             </span>
             <h2 className="text-3xl font-black text-slate-900">
@@ -473,11 +473,11 @@ export default function HomePage() {
                 >
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full px-6 py-4 text-left flex items-center justify-between font-bold text-slate-900 hover:text-[#FF6D00] transition-colors"
+                    className="w-full px-6 py-4 text-left flex items-center justify-between font-bold text-slate-900 hover:text-pingkas-orange transition-colors"
                   >
                     <span>{faq.q}</span>
                     {isOpen ? (
-                      <ChevronUp className="w-5 h-5 text-[#FF6D00] shrink-0 ml-2" />
+                      <ChevronUp className="w-5 h-5 text-pingkas-orange shrink-0 ml-2" />
                     ) : (
                       <ChevronDown className="w-5 h-5 text-slate-400 shrink-0 ml-2" />
                     )}
@@ -495,7 +495,7 @@ export default function HomePage() {
       </section>
 
       {/* Bottom CTA Banner */}
-      <section className="py-16 bg-gradient-to-br from-[#FF9E40] via-[#FF6D00] to-[#E65100] text-white">
+      <section className="py-16 bg-gradient-to-br from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="w-20 h-20 mx-auto">
             <PingKasLogo size={80} showText={false} />
@@ -512,9 +512,9 @@ export default function HomePage() {
               href="https://wa.me/6281234567890?text=Halo%20PingKas"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-extrabold text-[#E65100] bg-white rounded-2xl shadow-xl hover:bg-orange-50 transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-extrabold text-pingkas-orange-dark bg-white rounded-2xl shadow-xl hover:bg-orange-50 transition-all"
             >
-              <MessageCircle className="w-5 h-5 fill-[#E65100]" />
+              <MessageCircle className="w-5 h-5 fill-pingkas-orange-dark" />
               <span>Chat WhatsApp Sekarang</span>
             </a>
             <Link

@@ -216,10 +216,10 @@ export function WhatsAppSimulator() {
                 {/* Optional Rich Card for Bot */}
                 {msg.data && (
                   <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-[#1EA8B8] bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+                    <span className="font-bold text-pingkas-teal bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
                       {msg.data.category}
                     </span>
-                    <span className="font-extrabold text-[#FF6D00]">
+                    <span className="font-extrabold text-pingkas-orange">
                       {msg.data.type === "INCOME" ? "+" : "-"}
                       {new Intl.NumberFormat("id-ID", {
                         style: "currency",
@@ -251,7 +251,7 @@ export function WhatsAppSimulator() {
           <button
             key={idx}
             onClick={() => handleSend(q.text)}
-            className="shrink-0 text-[11px] font-semibold bg-white hover:bg-orange-50 hover:text-[#FF6D00] hover:border-orange-200 text-slate-700 px-2.5 py-1 rounded-full border border-slate-300 transition-colors shadow-xs"
+            className="shrink-0 text-[11px] font-semibold bg-white hover:bg-orange-50 hover:text-pingkas-orange hover:border-orange-200 text-slate-700 px-2.5 py-1 rounded-full border border-slate-300 transition-colors shadow-xs"
           >
             {q.label}
           </button>
@@ -271,7 +271,7 @@ export function WhatsAppSimulator() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ketik 'Bensin 20rb' atau 'Gaji 5jt'..."
-          className="flex-1 bg-white border border-slate-300 rounded-full px-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-[#128C7E] focus:ring-1 focus:ring-[#128C7E]"
+          className="flex-1 bg-white border border-slate-300 rounded-full px-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
         />
         <button
           type="submit"

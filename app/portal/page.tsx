@@ -274,7 +274,7 @@ export default function UserPortalPage() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FAF8F5]">
+    <div className="flex flex-col min-h-screen bg-pingkas-cream">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -317,7 +317,7 @@ export default function UserPortalPage() {
                   value={phoneInput}
                   onChange={(e) => setPhoneInput(e.target.value)}
                   placeholder="Contoh: 081234567890 atau 62812..."
-                  className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                  className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
                 />
               </div>
 
@@ -330,14 +330,14 @@ export default function UserPortalPage() {
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   placeholder="Contoh: Budi Pratama"
-                  className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                  className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="w-full py-3.5 text-sm font-extrabold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 text-sm font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {isLoggingIn ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -353,7 +353,7 @@ export default function UserPortalPage() {
             {/* Header Profile & Actions */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-orange-100 shadow-sm">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center text-[#FF6D00] font-black text-xl shadow-inner">
+                <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center text-pingkas-orange font-black text-xl shadow-inner">
                   <PingKasLogo size={42} showText={false} />
                 </div>
                 <div>
@@ -362,9 +362,9 @@ export default function UserPortalPage() {
                     <span
                       className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                         currentUser.plan === "PRO"
-                          ? "bg-orange-100 text-[#E65100] border border-orange-200"
+                          ? "bg-orange-100 text-pingkas-orange-dark border border-orange-200"
                           : currentUser.plan === "UNLIMITED"
-                          ? "bg-teal-100 text-[#1EA8B8] border border-teal-200"
+                          ? "bg-teal-100 text-pingkas-teal border border-teal-200"
                           : "bg-slate-100 text-slate-600 border border-slate-200"
                       }`}
                     >
@@ -385,7 +385,7 @@ export default function UserPortalPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-extrabold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 transition-all"
                 >
                   <PlusCircle className="w-4 h-4" />
                   <span>Tambah Transaksi</span>
@@ -416,7 +416,7 @@ export default function UserPortalPage() {
               <div className="bg-gradient-to-br from-[#FFFDF9] to-[#FFF7ED] p-6 rounded-3xl border-2 border-orange-200/80 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-extrabold text-[#E65100] uppercase tracking-wider">
+                    <span className="text-xs font-extrabold text-pingkas-orange-dark uppercase tracking-wider">
                       Kuota Transaksi Bulan Ini
                     </span>
                     <span className="text-xs font-bold text-slate-500">
@@ -442,7 +442,7 @@ export default function UserPortalPage() {
                             ? "bg-rose-500"
                             : (quota?.used || 0) > (quota?.maxQuota || 20) * 0.8
                             ? "bg-amber-500"
-                            : "bg-[#FF6D00]"
+                            : "bg-pingkas-orange"
                         }`}
                         style={{
                           width: `${Math.min(
@@ -466,7 +466,7 @@ export default function UserPortalPage() {
                     href="https://wa.me/6281234567890?text=Halo%20Admin,%20saya%20mau%20upgrade%20ke%20paket%20PRO"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-4 block text-center text-xs font-extrabold text-[#FF6D00] bg-white border border-orange-300 py-2 rounded-xl hover:bg-orange-50 transition-colors"
+                    className="mt-4 block text-center text-xs font-extrabold text-pingkas-orange bg-white border border-orange-300 py-2 rounded-xl hover:bg-orange-50 transition-colors"
                   >
                     ⭐ Upgrade ke Paket PRO (200 Trx)
                   </a>
@@ -479,14 +479,14 @@ export default function UserPortalPage() {
                   <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                     Saldo Bersih (Net)
                   </span>
-                  <div className="w-9 h-9 rounded-xl bg-teal-50 text-[#1EA8B8] flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-teal-50 text-pingkas-teal flex items-center justify-center">
                     <Wallet className="w-5 h-5" />
                   </div>
                 </div>
                 <div>
                   <div
                     className={`text-2xl font-black ${
-                      netBalance >= 0 ? "text-[#1EA8B8]" : "text-rose-600"
+                      netBalance >= 0 ? "text-pingkas-teal" : "text-rose-600"
                     }`}
                   >
                     Rp {netBalance.toLocaleString("id-ID")}
@@ -520,15 +520,15 @@ export default function UserPortalPage() {
               {/* Total Pengeluaran Card */}
               <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-extrabold text-[#E65100] uppercase tracking-wider">
+                  <span className="text-xs font-extrabold text-pingkas-orange-dark uppercase tracking-wider">
                     Total Pengeluaran
                   </span>
-                  <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#FF6D00] flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-orange-50 text-pingkas-orange flex items-center justify-center">
                     <ArrowUpRight className="w-5 h-5" />
                   </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-[#FF6D00]">
+                  <div className="text-2xl font-black text-pingkas-orange">
                     -Rp {totalExpense.toLocaleString("id-ID")}
                   </div>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
@@ -557,7 +557,7 @@ export default function UserPortalPage() {
                       placeholder="Cari transaksi..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-[#FF6D00]"
+                      className="pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-pingkas-orange"
                     />
                   </div>
 
@@ -574,7 +574,7 @@ export default function UserPortalPage() {
                       onClick={() => setFilterType("EXPENSE")}
                       className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${
                         filterType === "EXPENSE"
-                          ? "bg-[#FF6D00] text-white shadow-xs"
+                          ? "bg-pingkas-orange text-white shadow-xs"
                           : "text-slate-600"
                       }`}
                     >
@@ -597,7 +597,7 @@ export default function UserPortalPage() {
               {/* Transactions List */}
               {isLoadingData ? (
                 <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-                  <RefreshCw className="w-6 h-6 animate-spin text-[#FF6D00]" />
+                  <RefreshCw className="w-6 h-6 animate-spin text-pingkas-orange" />
                   <span className="text-xs font-semibold">Memuat transaksi...</span>
                 </div>
               ) : filteredTransactions.length === 0 ? (
@@ -629,7 +629,7 @@ export default function UserPortalPage() {
                           <div
                             className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                               isExpense
-                                ? "bg-orange-50 text-[#FF6D00]"
+                                ? "bg-orange-50 text-pingkas-orange"
                                 : "bg-emerald-50 text-emerald-600"
                             }`}
                           >
@@ -646,7 +646,7 @@ export default function UserPortalPage() {
                             <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
                               <span>{formattedDate}</span>
                               <span>•</span>
-                              <span className="font-semibold text-[#1EA8B8] bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+                              <span className="font-semibold text-pingkas-teal bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
                                 {trx.category?.name || "Umum"}
                               </span>
                             </div>
@@ -655,7 +655,7 @@ export default function UserPortalPage() {
 
                         <div
                           className={`font-black text-sm sm:text-base ${
-                            isExpense ? "text-[#FF6D00]" : "text-emerald-600"
+                            isExpense ? "text-pingkas-orange" : "text-emerald-600"
                           }`}
                         >
                           {isExpense ? "-" : "+"}Rp {trx.amount.toLocaleString("id-ID")}
@@ -675,7 +675,7 @@ export default function UserPortalPage() {
             <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-orange-100 text-[#FF6D00] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 text-pingkas-orange flex items-center justify-center">
                     <PlusCircle className="w-5 h-5" />
                   </div>
                   <h3 className="text-lg font-black text-slate-900">Tambah Transaksi Baru</h3>
@@ -712,7 +712,7 @@ export default function UserPortalPage() {
                       onClick={() => setTrxType("EXPENSE")}
                       className={`py-2 text-xs font-bold rounded-lg transition-colors ${
                         trxType === "EXPENSE"
-                          ? "bg-[#FF6D00] text-white shadow-xs"
+                          ? "bg-pingkas-orange text-white shadow-xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -744,7 +744,7 @@ export default function UserPortalPage() {
                     placeholder="Contoh: 25000"
                     value={trxAmount}
                     onChange={(e) => setTrxAmount(e.target.value)}
-                    className="w-full px-4 py-3 text-lg font-bold rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                    className="w-full px-4 py-3 text-lg font-bold rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
                   />
                   {/* Quick Chips */}
                   <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
@@ -753,7 +753,7 @@ export default function UserPortalPage() {
                         type="button"
                         key={quick}
                         onClick={() => setTrxAmount(quick.toString())}
-                        className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 hover:bg-orange-50 hover:text-[#FF6D00] text-slate-700 rounded-lg border border-slate-200"
+                        className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 hover:bg-orange-50 hover:text-pingkas-orange text-slate-700 rounded-lg border border-slate-200"
                       >
                         +{quick.toLocaleString("id-ID")}
                       </button>
@@ -772,7 +772,7 @@ export default function UserPortalPage() {
                     placeholder="Contoh: Makan Siang Nasi Padang, Bensin, Gaji"
                     value={trxDescription}
                     onChange={(e) => handleDescriptionChange(e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                    className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
                   />
                 </div>
 
@@ -786,7 +786,7 @@ export default function UserPortalPage() {
                     placeholder="Contoh: Makanan & Minuman, Transportasi, Tagihan"
                     value={trxCategory}
                     onChange={(e) => setTrxCategory(e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                    className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
                   />
                 </div>
 
@@ -801,7 +801,7 @@ export default function UserPortalPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
                   >
                     {isSubmitting ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />

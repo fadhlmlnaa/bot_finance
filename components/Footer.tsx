@@ -57,7 +57,7 @@ export function Footer() {
             </h4>
             <ul className="space-y-2.5 text-sm text-slate-400">
               <li>
-                <Link href="/portal" className="text-[#1EA8B8] hover:underline flex items-center gap-1 font-semibold">
+                <Link href="/portal" className="text-pingkas-teal hover:underline flex items-center gap-1 font-semibold">
                   <span>Portal Transaksi User</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Link>

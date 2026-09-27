@@ -20,8 +20,10 @@
   --color-pingkas-teal: #1EA8B8;
   --color-pingkas-teal-dark: #1995A4;
   --color-pingkas-gold: #FFCA28;
+  --color-pingkas-gold-dark: #FFA000;
   --color-pingkas-cream: #FAF8F5;
 }
+
 
 body {
   font-family: var(--font-poppins);

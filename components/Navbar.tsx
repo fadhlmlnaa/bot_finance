@@ -19,7 +19,7 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-orange-100/60 transition-all">
+    <header className="sticky top-0 z-50 bg-pingkas-cream/90 backdrop-blur-md border-b border-orange-100/60 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Brand Logo */}
@@ -31,25 +31,25 @@ export function Navbar() {
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
             <Link
               href="/#fitur"
-              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-[#FF6D00] rounded-lg transition-colors"
+              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-pingkas-orange rounded-lg transition-colors"
             >
               Fitur Utama
             </Link>
             <Link
               href="/#simulasi"
-              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-[#FF6D00] rounded-lg transition-colors"
+              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-pingkas-orange rounded-lg transition-colors"
             >
               Simulasi Chat
             </Link>
             <Link
               href="/#harga"
-              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-[#FF6D00] rounded-lg transition-colors"
+              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-pingkas-orange rounded-lg transition-colors"
             >
               Harga & Kuota
             </Link>
             <Link
               href="/#faq"
-              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-[#FF6D00] rounded-lg transition-colors"
+              className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-pingkas-orange rounded-lg transition-colors"
             >
               FAQ
             </Link>
@@ -61,11 +61,11 @@ export function Navbar() {
               href="/portal"
               className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all shadow-sm ${
                 pathname === "/portal"
-                  ? "bg-[#1EA8B8] text-white shadow-teal-500/20"
-                  : "bg-white text-slate-700 border border-slate-200 hover:border-[#1EA8B8] hover:text-[#1EA8B8]"
+                  ? "bg-pingkas-teal text-white shadow-teal-500/20"
+                  : "bg-white text-slate-700 border border-slate-200 hover:border-pingkas-teal hover:text-pingkas-teal"
               }`}
             >
-              <LayoutDashboard className="w-4 h-4 text-[#1EA8B8]" />
+              <LayoutDashboard className="w-4 h-4 text-pingkas-teal" />
               Portal User
             </Link>
 
@@ -73,7 +73,7 @@ export function Navbar() {
               href="https://wa.me/6281234567890?text=Halo%20PingKas,%20saya%20mau%20catat%20keuangan"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
             >
               <MessageCircle className="w-4 h-4 fill-white" />
               <span>Coba WhatsApp Bot</span>
@@ -85,13 +85,13 @@ export function Navbar() {
           <div className="flex md:hidden items-center gap-2">
             <Link
               href="/portal"
-              className="p-2 text-xs font-bold text-[#1EA8B8] bg-teal-50 rounded-lg border border-teal-100"
+              className="p-2 text-xs font-bold text-pingkas-teal bg-teal-50 rounded-lg border border-teal-100"
             >
               Portal
             </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2.5 text-slate-700 hover:text-[#FF6D00] bg-white rounded-xl border border-slate-200"
+              className="p-2.5 text-slate-700 hover:text-pingkas-orange bg-white rounded-xl border border-slate-200"
               aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -107,28 +107,28 @@ export function Navbar() {
             <Link
               href="/#fitur"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-[#FF6D00] hover:bg-orange-50 rounded-lg"
+              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-pingkas-orange hover:bg-orange-50 rounded-lg"
             >
               Fitur Utama
             </Link>
             <Link
               href="/#simulasi"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-[#FF6D00] hover:bg-orange-50 rounded-lg"
+              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-pingkas-orange hover:bg-orange-50 rounded-lg"
             >
               Simulasi Chat WhatsApp
             </Link>
             <Link
               href="/#harga"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-[#FF6D00] hover:bg-orange-50 rounded-lg"
+              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-pingkas-orange hover:bg-orange-50 rounded-lg"
             >
               Harga & Kuota
             </Link>
             <Link
               href="/#faq"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-[#FF6D00] hover:bg-orange-50 rounded-lg"
+              className="px-3 py-2 text-base font-semibold text-slate-700 hover:text-pingkas-orange hover:bg-orange-50 rounded-lg"
             >
               FAQ
             </Link>
@@ -138,7 +138,7 @@ export function Navbar() {
             <Link
               href="/portal"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 font-bold text-sm text-[#1EA8B8] bg-teal-50 border border-teal-200 rounded-xl"
+              className="flex items-center justify-center gap-2 w-full py-2.5 font-bold text-sm text-pingkas-teal bg-teal-50 border border-teal-200 rounded-xl"
             >
               <LayoutDashboard className="w-4 h-4" />
               Buka Web Portal User
@@ -147,7 +147,7 @@ export function Navbar() {
               href="https://wa.me/6281234567890?text=Halo%20PingKas"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3 font-bold text-sm text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-md shadow-orange-500/25"
+              className="flex items-center justify-center gap-2 w-full py-3 font-bold text-sm text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25"
             >
               <MessageCircle className="w-4 h-4" />
               Chat WhatsApp Bot Sekarang

@@ -328,7 +328,7 @@ export default function AdminDashboardPage() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FAF8F5]">
+    <div className="flex flex-col min-h-screen bg-pingkas-cream">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 space-y-8">
@@ -336,10 +336,10 @@ export default function AdminDashboardPage() {
           /* Secure Gatekeeper Screen */
           <div className="max-w-md mx-auto my-12 bg-white p-8 sm:p-10 rounded-3xl border-2 border-orange-200/80 shadow-2xl shadow-orange-500/10 animate-in fade-in zoom-in-95 duration-200">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 mx-auto mb-4 bg-slate-900 rounded-3xl flex items-center justify-center text-[#FF9E40] shadow-lg shadow-orange-500/20">
-                <Lock className="w-8 h-8 text-[#FF6D00]" />
+              <div className="w-16 h-16 mx-auto mb-4 bg-slate-900 rounded-3xl flex items-center justify-center text-pingkas-orange-light shadow-lg shadow-orange-500/20">
+                <Lock className="w-8 h-8 text-pingkas-orange" />
               </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 text-[#E65100] text-xs font-black uppercase tracking-wider mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 text-pingkas-orange-dark text-xs font-black uppercase tracking-wider mb-2">
                 <ShieldCheck className="w-3.5 h-3.5" /> Akses Khusus Admin
               </div>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -369,7 +369,7 @@ export default function AdminDashboardPage() {
                     placeholder="Contoh: 08123456789 atau 62812..."
                     value={adminPhoneInput}
                     onChange={(e) => setAdminPhoneInput(e.target.value)}
-                    className="w-full px-4 py-3 text-sm font-semibold rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                    className="w-full px-4 py-3 text-sm font-semibold rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
                   />
                 </div>
               </div>
@@ -377,7 +377,7 @@ export default function AdminDashboardPage() {
               <button
                 type="submit"
                 disabled={isVerifyingAdmin}
-                className="w-full py-3.5 text-sm font-extrabold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 text-sm font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {isVerifyingAdmin ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -396,13 +396,13 @@ export default function AdminDashboardPage() {
             {/* Admin Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-[#FF9E40] shadow-inner">
-                  <ShieldCheck className="w-8 h-8 text-[#FF6D00]" />
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-pingkas-orange-light shadow-inner">
+                  <ShieldCheck className="w-8 h-8 text-pingkas-orange" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-black text-white">Admin & Engine Center</h1>
-                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-orange-500/20 text-[#FF9E40] border border-orange-500/30">
+                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-orange-500/20 text-pingkas-orange-light border border-orange-500/30">
                       DIREKTUR CONTROL
                     </span>
                   </div>
@@ -473,7 +473,7 @@ export default function AdminDashboardPage() {
                 {metrics?.adminUsers ?? 1} Akun Admin
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#FF6D00] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-pingkas-orange flex items-center justify-center">
               <Users className="w-6 h-6" />
             </div>
           </div>
@@ -483,14 +483,14 @@ export default function AdminDashboardPage() {
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Langganan Aktif
               </span>
-              <div className="text-2xl font-black text-[#1EA8B8] mt-1">
+              <div className="text-2xl font-black text-pingkas-teal mt-1">
                 {metrics?.activePaidSubscriptions ?? 0}
               </div>
               <span className="text-[11px] font-semibold text-teal-600">
                 PRO & UNLIMITED Plan
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#1EA8B8] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-pingkas-teal flex items-center justify-center">
               <CreditCard className="w-6 h-6" />
             </div>
           </div>
@@ -507,7 +507,7 @@ export default function AdminDashboardPage() {
                 Tercatat di Supabase
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#FFA000] flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-pingkas-gold-dark flex items-center justify-center">
               <Database className="w-6 h-6" />
             </div>
           </div>
@@ -551,7 +551,7 @@ export default function AdminDashboardPage() {
                 : "text-slate-600 hover:bg-slate-200/60"
             }`}
           >
-            <Server className="w-4 h-4 text-[#FF9E40]" />
+            <Server className="w-4 h-4 text-pingkas-orange-light" />
             <span>Kondisi Engine & Server</span>
           </button>
 
@@ -559,7 +559,7 @@ export default function AdminDashboardPage() {
             onClick={() => setActiveTab("USERS")}
             className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-2xl transition-all ${
               activeTab === "USERS"
-                ? "bg-[#FF6D00] text-white shadow-md shadow-orange-500/20"
+                ? "bg-pingkas-orange text-white shadow-md shadow-orange-500/20"
                 : "text-slate-600 hover:bg-slate-200/60"
             }`}
           >
@@ -573,7 +573,7 @@ export default function AdminDashboardPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200/80">
               <div className="flex items-center gap-3">
-                <Activity className="w-5 h-5 text-[#FF6D00]" />
+                <Activity className="w-5 h-5 text-pingkas-orange" />
                 <div>
                   <h3 className="text-sm font-black text-slate-900">Live Health Engine Status</h3>
                   <p className="text-xs text-slate-500">
@@ -588,7 +588,7 @@ export default function AdminDashboardPage() {
                     type="checkbox"
                     checked={autoRefreshHealth}
                     onChange={(e) => setAutoRefreshHealth(e.target.checked)}
-                    className="rounded text-[#FF6D00] focus:ring-orange-500"
+                    className="rounded text-pingkas-orange focus:ring-orange-500"
                   />
                   <span>Auto-Refresh (8s)</span>
                 </label>
@@ -651,7 +651,7 @@ export default function AdminDashboardPage() {
               {/* Engine 2: Supabase PostgreSQL */}
               <div className="bg-white rounded-3xl p-6 border-2 border-slate-200/80 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#1EA8B8] flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-pingkas-teal flex items-center justify-center">
                     <Database className="w-6 h-6" />
                   </div>
                   <span
@@ -707,7 +707,7 @@ export default function AdminDashboardPage() {
               {/* Engine 3: Baileys WhatsApp Engine */}
               <div className="bg-white rounded-3xl p-6 border-2 border-slate-200/80 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#FF6D00] flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 text-pingkas-orange flex items-center justify-center">
                     <MessageSquare className="w-6 h-6" />
                   </div>
                   <span
@@ -753,7 +753,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="flex justify-between text-slate-600">
                     <span>Bot WhatsApp:</span>
-                    <span className="font-bold text-[#FF6D00]">
+                    <span className="font-bold text-pingkas-orange">
                       {healthData?.engines.whatsapp.botNumber || "Aktif"}
                     </span>
                   </div>
@@ -783,7 +783,7 @@ export default function AdminDashboardPage() {
                     placeholder="Cari nama atau No WA..."
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
-                    className="pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-[#FF6D00]"
+                    className="pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-pingkas-orange"
                   />
                 </div>
 
@@ -808,7 +808,7 @@ export default function AdminDashboardPage() {
             {/* Users Table */}
             {isLoadingUsers ? (
               <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-                <RefreshCw className="w-6 h-6 animate-spin text-[#FF6D00]" />
+                <RefreshCw className="w-6 h-6 animate-spin text-pingkas-orange" />
                 <span className="text-xs font-semibold">Memuat daftar pengguna...</span>
               </div>
             ) : filteredUsers.length === 0 ? (
@@ -847,9 +847,9 @@ export default function AdminDashboardPage() {
                             <span
                               className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
                                 u.plan === "PRO"
-                                  ? "bg-orange-100 text-[#E65100] border border-orange-200"
+                                  ? "bg-orange-100 text-pingkas-orange-dark border border-orange-200"
                                   : u.plan === "UNLIMITED"
-                                  ? "bg-teal-100 text-[#1EA8B8] border border-teal-200"
+                                  ? "bg-teal-100 text-pingkas-teal border border-teal-200"
                                   : "bg-slate-100 text-slate-600 border border-slate-200"
                               }`}
                             >
@@ -878,7 +878,7 @@ export default function AdminDashboardPage() {
                                     ? "bg-rose-500"
                                     : percentage > 80
                                     ? "bg-amber-500"
-                                    : "bg-[#FF6D00]"
+                                    : "bg-pingkas-orange"
                                 }`}
                                 style={{ width: `${percentage}%` }}
                               />
@@ -898,7 +898,7 @@ export default function AdminDashboardPage() {
                           <td className="py-4 px-3 text-right">
                             <button
                               onClick={() => handleOpenEditModal(u)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#FF6D00] bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-pingkas-orange bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                               <span>Edit Kuota</span>
@@ -920,7 +920,7 @@ export default function AdminDashboardPage() {
             <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-orange-100 text-[#FF6D00] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 text-pingkas-orange flex items-center justify-center">
                     <Sliders className="w-4 h-4" />
                   </div>
                   <div>
@@ -957,7 +957,7 @@ export default function AdminDashboardPage() {
                         }}
                         className={`py-2.5 text-xs font-black rounded-xl border transition-all ${
                           editPlan === p
-                            ? "bg-orange-50 border-[#FF6D00] text-[#FF6D00] shadow-xs"
+                            ? "bg-orange-50 border-pingkas-orange text-pingkas-orange shadow-xs"
                             : "border-slate-200 text-slate-600 hover:bg-slate-50"
                         }`}
                       >
@@ -978,7 +978,7 @@ export default function AdminDashboardPage() {
                     required
                     value={editQuota}
                     onChange={(e) => setEditQuota(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2.5 text-base font-bold rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00] focus:ring-2 focus:ring-orange-500/20"
+                    className="w-full px-4 py-2.5 text-base font-bold rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
                   />
                   <div className="flex gap-1.5 mt-2">
                     {[20, 100, 200, 500, 1000, 99999].map((q) => (
@@ -1003,7 +1003,7 @@ export default function AdminDashboardPage() {
                     <select
                       value={editDurationDays}
                       onChange={(e) => setEditDurationDays(e.target.value)}
-                      className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-[#FF6D00]"
+                      className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange"
                     >
                       <option value="30">+30 Hari (1 Bulan)</option>
                       <option value="90">+90 Hari (3 Bulan)</option>
@@ -1020,7 +1020,7 @@ export default function AdminDashboardPage() {
                       type="checkbox"
                       checked={editIsAdmin}
                       onChange={(e) => setEditIsAdmin(e.target.checked)}
-                      className="rounded text-[#FF6D00] focus:ring-orange-500 w-4 h-4"
+                      className="rounded text-pingkas-orange focus:ring-orange-500 w-4 h-4"
                     />
                     <span>Berikan Hak Akses Admin (isAdmin = true)</span>
                   </label>
@@ -1037,7 +1037,7 @@ export default function AdminDashboardPage() {
                   <button
                     type="submit"
                     disabled={isSavingUser}
-                    className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#FF9E40] via-[#FF6D00] to-[#E65100] rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
                   >
                     {isSavingUser ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
