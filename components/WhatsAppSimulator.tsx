@@ -181,10 +181,6 @@ export function WhatsAppSimulator() {
             </p>
           </div>
         </div>
-
-        <div className="text-[11px] bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full font-semibold">
-          Demo Sim
-        </div>
       </div>
 
       {/* WhatsApp Chat Background & Messages */}

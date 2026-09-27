@@ -69,9 +69,16 @@ export default function HomePage() {
               </h1>
 
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-medium">
-                Cukup ketik <span className="font-bold text-slate-900 bg-orange-100 px-2 py-0.5 rounded">&ldquo;Kopi 25rb&rdquo;</span> atau{" "}
-                <span className="font-bold text-slate-900 bg-teal-100 px-2 py-0.5 rounded">&ldquo;Gaji 5jt&rdquo;</span>. Transaksi langsung tercatat,
-                terkategori otomatis, dan siap dipantau di Web & Mobile App.
+                Cukup ketik{" "}
+                <span className="font-bold text-slate-900 bg-orange-100 px-2 py-0.5 rounded">
+                  &ldquo;Kopi 25rb&rdquo;
+                </span>{" "}
+                atau{" "}
+                <span className="font-bold text-slate-900 bg-teal-100 px-2 py-0.5 rounded">
+                  &ldquo;Gaji 5jt&rdquo;
+                </span>
+                . Transaksi langsung tercatat, terkategori otomatis, dan siap
+                dipantau di Web & Mobile App.
               </p>
 
               {/* Action Buttons */}
@@ -100,15 +107,21 @@ export default function HomePage() {
               <div className="pt-6 border-t border-slate-200/80 grid grid-cols-3 gap-4 max-w-lg mx-auto lg:mx-0">
                 <div>
                   <div className="text-2xl font-black text-slate-900">0.5s</div>
-                  <div className="text-xs font-semibold text-slate-500">Respon Bot AI</div>
+                  <div className="text-xs font-semibold text-slate-500">
+                    Respon Bot AI
+                  </div>
                 </div>
                 <div>
                   <div className="text-2xl font-black text-[#1EA8B8]">100%</div>
-                  <div className="text-xs font-semibold text-slate-500">Auto Sync Real-time</div>
+                  <div className="text-xs font-semibold text-slate-500">
+                    Auto Sync Real-time
+                  </div>
                 </div>
                 <div>
                   <div className="text-2xl font-black text-[#FF6D00]">20+</div>
-                  <div className="text-xs font-semibold text-slate-500">Kategori Otomatis</div>
+                  <div className="text-xs font-semibold text-slate-500">
+                    Kategori Otomatis
+                  </div>
                 </div>
               </div>
             </div>
@@ -125,7 +138,10 @@ export default function HomePage() {
       </section>
 
       {/* Features Showcase Section */}
-      <section id="fitur" className="py-20 bg-white border-y border-orange-100/60">
+      <section
+        id="fitur"
+        className="py-20 bg-white border-y border-orange-100/60"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
             <span className="text-xs font-extrabold uppercase tracking-wider text-[#FF6D00] bg-orange-100/80 px-3.5 py-1.5 rounded-full">
@@ -135,7 +151,8 @@ export default function HomePage() {
               Solusi Catat Keuangan Paling Santai & Cepat
             </h2>
             <p className="text-base text-slate-600">
-              Didesain khusus untuk kamu yang malas membuka aplikasi keuangan yang rumit dan penuh form panjang.
+              Didesain khusus untuk kamu yang malas membuka aplikasi keuangan
+              yang rumit dan penuh form panjang.
             </p>
           </div>
 
@@ -149,10 +166,11 @@ export default function HomePage() {
                 Ketik Seperti Chat Biasa
               </h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Tulis saja pengeluaran harianmu: &ldquo;Sate Padang 30rb&rdquo;, &ldquo;Gojek 18k&rdquo;, atau &ldquo;Gaji Bulanan 7jt&rdquo;. PingKas memahami teks naturalmu.
+                Tulis saja pengeluaran harianmu: &ldquo;Sate Padang 30rb&rdquo;,
+                &ldquo;Gojek 18k&rdquo;, atau &ldquo;Gaji Bulanan 7jt&rdquo;.
+                PingKas memahami teks naturalmu.
               </p>
             </div>
-
 
             {/* Feature 2 */}
             <div className="bg-[#FAF8F5] p-8 rounded-3xl border border-teal-100 hover:border-teal-300 hover:shadow-xl hover:shadow-teal-500/5 transition-all group">
@@ -163,7 +181,8 @@ export default function HomePage() {
                 Smart AI Categorizer
               </h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Kategori Makanan, Transportasi, Tagihan, Belanja, dan Hiburan langsung terpasang otomatis tanpa perlu dipilih manual.
+                Kategori Makanan, Transportasi, Tagihan, Belanja, dan Hiburan
+                langsung terpasang otomatis tanpa perlu dipilih manual.
               </p>
             </div>
 
@@ -176,7 +195,9 @@ export default function HomePage() {
                 Sync Web & Mobile App
               </h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Pantau riwayat lengkap, tambah transaksi lewat form web, dan lihat status kuota kapan saja melalui Web Portal atau Flutter App.
+                Pantau riwayat lengkap, tambah transaksi lewat form web, dan
+                lihat status kuota kapan saja melalui Web Portal atau Flutter
+                App.
               </p>
             </div>
           </div>
@@ -197,35 +218,50 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
             <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-sm relative">
-              <span className="text-5xl font-black text-orange-200/70 absolute top-4 right-6">01</span>
+              <span className="text-5xl font-black text-orange-200/70 absolute top-4 right-6">
+                01
+              </span>
               <div className="w-12 h-12 rounded-xl bg-orange-100 text-[#FF6D00] font-black text-lg flex items-center justify-center mb-6">
                 1
               </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Kirim Chat ke WA</h4>
+              <h4 className="text-lg font-bold text-slate-900 mb-2">
+                Kirim Chat ke WA
+              </h4>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Ketik pengeluaran atau pemasukan baru langsung ke kontak WhatsApp Bot PingKas.
+                Ketik pengeluaran atau pemasukan baru langsung ke kontak
+                WhatsApp Bot PingKas.
               </p>
             </div>
 
             <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-sm relative">
-              <span className="text-5xl font-black text-teal-200/70 absolute top-4 right-6">02</span>
+              <span className="text-5xl font-black text-teal-200/70 absolute top-4 right-6">
+                02
+              </span>
               <div className="w-12 h-12 rounded-xl bg-teal-100 text-[#1EA8B8] font-black text-lg flex items-center justify-center mb-6">
                 2
               </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Bot Memproses Otomatis</h4>
+              <h4 className="text-lg font-bold text-slate-900 mb-2">
+                Bot Memproses Otomatis
+              </h4>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Bot AI membaca nominal, menetapkan kategori, dan menyimpan data ke database dalam 0.5 detik.
+                Bot AI membaca nominal, menetapkan kategori, dan menyimpan data
+                ke database dalam 0.5 detik.
               </p>
             </div>
 
             <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-sm relative">
-              <span className="text-5xl font-black text-amber-200/70 absolute top-4 right-6">03</span>
+              <span className="text-5xl font-black text-amber-200/70 absolute top-4 right-6">
+                03
+              </span>
               <div className="w-12 h-12 rounded-xl bg-amber-100 text-[#FFA000] font-black text-lg flex items-center justify-center mb-6">
                 3
               </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Pantau di Web & Mobile</h4>
+              <h4 className="text-lg font-bold text-slate-900 mb-2">
+                Pantau di Web & Mobile
+              </h4>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Buka Web Portal untuk menambah transaksi secara manual, cek sisa kuota, dan ekspor laporan.
+                Buka Web Portal untuk menambah transaksi secara manual, cek sisa
+                kuota, dan ekspor laporan.
               </p>
             </div>
           </div>
@@ -233,7 +269,10 @@ export default function HomePage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="harga" className="py-20 bg-white border-y border-orange-100/60">
+      <section
+        id="harga"
+        className="py-20 bg-white border-y border-orange-100/60"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
             <span className="text-xs font-extrabold uppercase tracking-wider text-[#FF6D00] bg-orange-100/80 px-3.5 py-1.5 rounded-full">
@@ -243,7 +282,8 @@ export default function HomePage() {
               Transparan Tanpa Biaya Tersembunyi
             </h2>
             <p className="text-base text-slate-600">
-              Mulai gratis sekarang atau upgrade ke PRO untuk kebutuhan pencatatan harian yang lebih leluasa.
+              Mulai gratis sekarang atau upgrade ke PRO untuk kebutuhan
+              pencatatan harian yang lebih leluasa.
             </p>
           </div>
 
@@ -258,17 +298,22 @@ export default function HomePage() {
                   </span>
                 </div>
                 <div className="mb-6">
-                  <span className="text-4xl font-black text-slate-900">Rp 0</span>
+                  <span className="text-4xl font-black text-slate-900">
+                    Rp 0
+                  </span>
                   <span className="text-sm text-slate-500"> / bulan</span>
                 </div>
                 <p className="text-xs text-slate-600 mb-6">
-                  Cocok untuk pengguna baru yang ingin mencoba kepraktisan bot WhatsApp.
+                  Cocok untuk pengguna baru yang ingin mencoba kepraktisan bot
+                  WhatsApp.
                 </p>
 
                 <ul className="space-y-3 text-sm text-slate-700 mb-8">
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span><strong>20 Transaksi</strong> per bulan</span>
+                    <span>
+                      <strong>20 Transaksi</strong> per bulan
+                    </span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -307,17 +352,22 @@ export default function HomePage() {
                   </span>
                 </div>
                 <div className="mb-6">
-                  <span className="text-4xl font-black text-[#FF6D00]">Rp 19.000</span>
+                  <span className="text-4xl font-black text-[#FF6D00]">
+                    Rp 19.000
+                  </span>
                   <span className="text-sm text-slate-500"> / bulan</span>
                 </div>
                 <p className="text-xs text-slate-600 mb-6">
-                  Ideal untuk pencatatan harian aktif tanpa takut kehabisan kuota transaksi.
+                  Ideal untuk pencatatan harian aktif tanpa takut kehabisan
+                  kuota transaksi.
                 </p>
 
                 <ul className="space-y-3 text-sm text-slate-700 mb-8">
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-[#FF6D00] shrink-0" />
-                    <span><strong>200 Transaksi</strong> per bulan</span>
+                    <span>
+                      <strong>200 Transaksi</strong> per bulan
+                    </span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-[#FF6D00] shrink-0" />
@@ -348,23 +398,30 @@ export default function HomePage() {
             <div className="bg-[#FAF8F5] rounded-3xl p-8 border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-all">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-slate-900">UNLIMITED</h3>
+                  <h3 className="text-xl font-bold text-slate-900">
+                    UNLIMITED
+                  </h3>
                   <span className="text-xs font-bold text-[#1EA8B8] bg-teal-100 px-2.5 py-1 rounded-full">
                     Bisnis / Power User
                   </span>
                 </div>
                 <div className="mb-6">
-                  <span className="text-4xl font-black text-slate-900">Rp 49.000</span>
+                  <span className="text-4xl font-black text-slate-900">
+                    Rp 49.000
+                  </span>
                   <span className="text-sm text-slate-500"> / bulan</span>
                 </div>
                 <p className="text-xs text-slate-600 mb-6">
-                  Untuk pebisnis, UMKM, atau individu dengan mobilitas transaksi super tinggi.
+                  Untuk pebisnis, UMKM, atau individu dengan mobilitas transaksi
+                  super tinggi.
                 </p>
 
                 <ul className="space-y-3 text-sm text-slate-700 mb-8">
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span><strong>Transaksi Tanpa Batas (Unlimited)</strong></span>
+                    <span>
+                      <strong>Transaksi Tanpa Batas (Unlimited)</strong>
+                    </span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -401,7 +458,9 @@ export default function HomePage() {
             <span className="text-xs font-extrabold uppercase tracking-wider text-[#FF6D00] bg-orange-100/80 px-3.5 py-1.5 rounded-full">
               Pertanyaan Populer
             </span>
-            <h2 className="text-3xl font-black text-slate-900">Pertanyaan yang Sering Diajukan</h2>
+            <h2 className="text-3xl font-black text-slate-900">
+              Pertanyaan yang Sering Diajukan
+            </h2>
           </div>
 
           <div className="space-y-4">
@@ -445,7 +504,8 @@ export default function HomePage() {
             Mulai Kelola Finansialmu Lebih Sehat Sekarang!
           </h2>
           <p className="text-base sm:text-lg text-orange-100 max-w-2xl mx-auto">
-            Gabung bersama ribuan pengguna yang telah beralih ke cara cerdas mencatat keuangan via WhatsApp.
+            Gabung bersama ribuan pengguna yang telah beralih ke cara cerdas
+            mencatat keuangan via WhatsApp.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <a
