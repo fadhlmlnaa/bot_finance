@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { inferCategoryName } from "@/lib/categorizer";
 import { checkUserQuota } from "@/lib/subscription";
+import { syncTransactionToGoogleSheet } from "@/lib/sheets";
+
 
 export async function POST(request: Request) {
   try {
@@ -144,6 +146,9 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Auto-sync to Google Sheets if configured (asynchronous non-blocking)
+    void syncTransactionToGoogleSheet(transaction, user);
 
     return NextResponse.json(
       {

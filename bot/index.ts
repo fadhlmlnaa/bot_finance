@@ -14,6 +14,8 @@ import { inferCategoryName } from "../lib/categorizer";
 import { checkUserQuota, updateUserSubscription } from "../lib/subscription";
 import { SubscriptionPlan } from "@prisma/client";
 import { parseWhatsAppMessage, formatRupiah, formatDateTime } from "./parser";
+import { syncTransactionToGoogleSheet } from "../lib/sheets";
+
 
 const AUTH_DIR = path.join(process.cwd(), "bot_auth");
 
@@ -579,7 +581,82 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 4. Command: Rekapitulasi / Summary
+      // 4. Command: Auto-sync Google Sheets (!setsheet <url>)
+      if (trimmedText.startsWith("!setsheet") || trimmedText.startsWith("!sheet")) {
+        const parts = trimmedText.split(/\s+/);
+        if (parts.length < 2) {
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `📊 *PANDUAN AUTO-SYNC GOOGLE SHEETS*\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
+                `Format: \`!setsheet <URL_Web_App_Google_Apps_Script>\`\n\n` +
+                `*Contoh:*\n` +
+                `\`!setsheet https://script.google.com/macros/s/.../exec\`\n\n` +
+                `_Ketik \`!setsheet off\` untuk menonaktifkan sync._`,
+            },
+            { quoted: msg },
+          );
+          continue;
+        }
+
+        const rawUrl = parts[1].trim();
+        const isOff = rawUrl.toLowerCase() === "off" || rawUrl.toLowerCase() === "disable";
+
+        await prisma.user.upsert({
+          where: { phoneNumber },
+          update: {
+            sheetWebhookUrl: isOff ? null : rawUrl,
+            autoSyncSheet: !isOff,
+          },
+          create: {
+            phoneNumber,
+            name: senderName,
+            sheetWebhookUrl: isOff ? null : rawUrl,
+            autoSyncSheet: !isOff,
+          },
+        });
+
+        await sock.sendMessage(
+          senderJid,
+          {
+            text: isOff
+              ? `✅ Auto-sync ke Google Sheets telah dinonaktifkan.`
+              : `✅ *Auto-sync Google Sheets Aktif!*\nSetiap transaksi baru Anda akan otomatis terkirim dan tercatat ke Google Spreadsheet Anda secara real-time.`,
+          },
+          { quoted: msg },
+        );
+        continue;
+      }
+
+      // 5. Command: Download Rekap Spreadsheet (rekap excel / export)
+      if (
+        /^(rekap\s*excel|rekap\s*spreadsheet|export|unduh\s*excel|download\s*rekap)$/i.test(
+          trimmedText,
+        )
+      ) {
+        const backendBase =
+          process.env.NEXT_PUBLIC_APP_URL || "https://bot-finance-pi.vercel.app";
+        const downloadUrl = `${backendBase}/api/transactions/export?phoneNumber=${phoneNumber}`;
+
+        await sock.sendMessage(
+          senderJid,
+          {
+            text:
+              `📥 *UNDUH REKAP SPREADSHEET (EXCEL/CSV)*\n` +
+              `━━━━━━━━━━━━━━━━━━━━\n` +
+              `Klik tautan di bawah untuk mengunduh rekap transaksi Anda:\n\n` +
+              `🔗 *Download File:*\n${downloadUrl}\n\n` +
+              `💻 *Buka Web Portal:*\n${backendBase}/portal\n` +
+              `━━━━━━━━━━━━━━━━━━━━`,
+          },
+          { quoted: msg },
+        );
+        continue;
+      }
+
+      // 6. Command: Rekapitulasi / Summary
       if (/^(rekap|laporan|summary|saldo)$/i.test(trimmedText)) {
         try {
           const user = await prisma.user.findUnique({
@@ -737,6 +814,19 @@ async function startWhatsAppBot() {
             categoryId: category.id,
           },
         });
+
+        // Auto-sync to Google Sheets if configured (asynchronous non-blocking)
+        void syncTransactionToGoogleSheet(
+          {
+            id: transaction.id,
+            amount: transaction.amount,
+            description: transaction.description,
+            type: transaction.type,
+            date: transaction.date,
+            category: { name: category.name },
+          },
+          user,
+        );
 
         // Format and send reply receipt
         const isIncome = parsed.type === "INCOME";

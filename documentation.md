@@ -53,6 +53,10 @@ model User {
   monthlyQuota    Int              @default(20) // Maksimal transaksi per bulan
   isAdmin         Boolean          @default(false) // Penentu akses menu Admin di Flutter
 
+  // Google Sheets Auto-Sync
+  sheetWebhookUrl String?          // Webhook Apps Script milik user
+  autoSyncSheet   Boolean          @default(false)
+
   categories      Category[]
   transactions    Transaction[]
 }
@@ -367,6 +371,8 @@ class UserModel {
   final int monthlyQuota;
   final int usedQuota;
   final int remainingQuota;
+  final String? sheetWebhookUrl;
+  final bool autoSyncSheet;
 
   UserModel({
     required this.id,
@@ -377,6 +383,8 @@ class UserModel {
     required this.monthlyQuota,
     required this.usedQuota,
     required this.remainingQuota,
+    this.sheetWebhookUrl,
+    this.autoSyncSheet = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -391,12 +399,421 @@ class UserModel {
       monthlyQuota: user['monthlyQuota'],
       usedQuota: quota['used'],
       remainingQuota: quota['remaining'],
+      sheetWebhookUrl: user['sheetWebhookUrl'],
+      autoSyncSheet: user['autoSyncSheet'] ?? false,
     );
   }
 }
 ```
 
-### B. Service Admin di Flutter (`admin_service.dart`):
+---
+
+## 5. Fitur Auto-Sync Google Spreadsheet & Ekspor CSV / Excel
+
+Fitur ini memungkinkan setiap transaksi yang dicatat via **WhatsApp Bot**, **Website User Portal**, ataupun **Aplikasi Android/iOS Flutter** langsung otomatis tersimpan ke **Google Spreadsheet pribadi milik user**.
+
+### A. Alur Kerja Auto-Sync (Real-time & Non-blocking)
+1. User membuat Google Spreadsheet di Google Drive & memasang Google Apps Script.
+2. User mengaktifkan Auto-Sync dan memasukkan Webhook URL Google Apps Script (`/exec`).
+3. Setiap ada transaksi baru masuk (`POST /api/transactions` atau Bot WA), server Next.js memicu `syncTransactionToGoogleSheet()` secara asynchronous di background dengan timeout 6 detik sehingga respons bot & mobile tetap instan (< 500ms).
+4. Google Apps Script menambahkan 1 baris baru (*appendRow*) berisi Tanggal, Deskripsi, Kategori, Tipe, Nominal (Rupiah), Tanda (+/-), User, dan ID Transaksi.
+
+---
+
+### B. Template Google Apps Script (`Code.gs`)
+Salin kode berikut ke Google Spreadsheet Anda di menu **Ekstensi (Extensions)** > **Apps Script**, lalu klik **Deploy** > **New deployment** > **Web app** (*Who has access: Anyone*):
+
+```javascript
+/**
+ * PINGKAS - Google Apps Script Webhook Listener
+ * Script ini menerima payload JSON dari PingKas dan mencatatnya ke Google Sheet aktif.
+ */
+function doPost(e) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var contents = JSON.parse(e.postData.contents);
+
+    // Inisialisasi Header Otomatis jika Sheet masih kosong
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "ID Transaksi",
+        "Waktu & Tanggal",
+        "Tipe Transaksi",
+        "Kategori",
+        "Deskripsi / Catatan",
+        "Nominal (Angka)",
+        "Nominal Bersih (+/-)",
+        "Pengguna"
+      ]);
+      sheet.getRange("A1:H1").setFontWeight("bold").setBackground("#FF6D00").setFontColor("#FFFFFF");
+      sheet.setFrozenRows(1);
+    }
+
+    var signedAmount = contents.type === 'INCOME' ? contents.amount : -contents.amount;
+
+    // Catat Baris Transaksi Baru
+    sheet.appendRow([
+      contents.id || "-",
+      contents.formattedDate || new Date().toLocaleString("id-ID"),
+      contents.type === 'INCOME' ? 'PEMASUKAN' : 'PENGELUARAN',
+      contents.category || 'Umum',
+      contents.description || '-',
+      contents.amount || 0,
+      signedAmount,
+      contents.userPhone || '-'
+    ]);
+
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: "success", message: "Transaksi berhasil dicatat ke Spreadsheet" })
+    ).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: "error", message: error.toString() })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(
+    JSON.stringify({ status: "active", message: "PingKas Google Sheets Webhook is ready!" })
+  ).setMimeType(ContentService.MimeType.JSON);
+}
+```
+
+---
+
+### C. Endpoint Pengaturan Webhook User
+
+#### 1. Ambil Pengaturan Google Sheets (`GET /api/user/sheet-settings`)
+- **URL**: `GET /api/user/sheet-settings?phoneNumber=085280357817`
+- **Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "phoneNumber": "6285280357817",
+    "sheetWebhookUrl": "https://script.google.com/macros/s/.../exec",
+    "autoSyncSheet": true
+  }
+}
+```
+
+#### 2. Simpan Pengaturan Google Sheets (`POST /api/user/sheet-settings`)
+- **URL**: `POST /api/user/sheet-settings`
+- **Body**:
+```json
+{
+  "phoneNumber": "085280357817",
+  "sheetWebhookUrl": "https://script.google.com/macros/s/AKfycb.../exec",
+  "autoSyncSheet": true
+}
+```
+
+#### 3. Tes Koneksi & Kirim Baris Uji Coba (`POST /api/user/sheet-settings/test`)
+Mengirim 1 baris dummy ke spreadsheet pengguna untuk memastikan Webhook URL valid dan dapat diakses.
+- **URL**: `POST /api/user/sheet-settings/test`
+- **Body**:
+```json
+{
+  "phoneNumber": "085280357817",
+  "sheetWebhookUrl": "https://script.google.com/macros/s/.../exec"
+}
+```
+
+---
+
+### D. Endpoint Unduh Rekap Transaksi (.CSV / Excel)
+
+Menghasilkan file `.csv` dengan encoding UTF-8 BOM (`\uFEFF`) sehingga kompatibel langsung saat dibuka di Microsoft Excel dan Google Sheets.
+
+- **URL**: `GET /api/transactions/export?phoneNumber=085280357817&month=9&year=2026&type=ALL`
+- **Query Params**:
+  - `phoneNumber` (wajib): Nomor HP user
+  - `month` (opsional): 1-12
+  - `year` (opsional): contoh `2026`
+  - `type` (opsional): `ALL` | `EXPENSE` | `INCOME`
+- **Header Response**: `Content-Disposition: attachment; filename="PingKas_Rekap_6285280357817_2026-09.csv"`
+
+---
+
+## 6. Integrasi Mobile Android / Flutter (Lengkap)
+
+### A. Service Google Sheets & Ekspor di Flutter (`spreadsheet_service.dart`):
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+
+class SpreadsheetService {
+  static const String baseUrl = 'https://bot-finance-pi.vercel.app';
+
+  /// 1. Ambil pengaturan Webhook Sheets user
+  static Future<Map<String, dynamic>?> getSheetSettings(String phoneNumber) async {
+    final uri = Uri.parse('$baseUrl/api/user/sheet-settings').replace(
+      queryParameters: {'phoneNumber': phoneNumber},
+    );
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json['data'];
+    }
+    return null;
+  }
+
+  /// 2. Simpan pengaturan Webhook & Toggle Auto-Sync
+  static Future<bool> saveSheetSettings({
+    required String phoneNumber,
+    String? sheetWebhookUrl,
+    required bool autoSyncSheet,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/user/sheet-settings'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'phoneNumber': phoneNumber,
+        'sheetWebhookUrl': sheetWebhookUrl,
+        'autoSyncSheet': autoSyncSheet,
+      }),
+    );
+    return response.statusCode == 200;
+  }
+
+  /// 3. Uji coba kirim 1 baris sampel ke Google Spreadsheet
+  static Future<Map<String, dynamic>> testSheetWebhook({
+    required String phoneNumber,
+    required String sheetWebhookUrl,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/user/sheet-settings/test'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'phoneNumber': phoneNumber,
+        'sheetWebhookUrl': sheetWebhookUrl,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// 4. Unduh Rekap CSV / Excel ke Penyimpanan Lokal Android / iOS
+  static Future<File?> downloadCsvReport({
+    required String phoneNumber,
+    int? month,
+    int? year,
+    String? type,
+  }) async {
+    final queryParams = <String, String>{'phoneNumber': phoneNumber};
+    if (month != null) queryParams['month'] = month.toString();
+    if (year != null) queryParams['year'] = year.toString();
+    if (type != null) queryParams['type'] = type;
+
+    final uri = Uri.parse('$baseUrl/api/transactions/export').replace(
+      queryParameters: queryParams,
+    );
+
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      final dir = await getApplicationDocumentsDirectory();
+      final filename = 'PingKas_Rekap_${phoneNumber}_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final file = File('${dir.path}/$filename');
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
+    }
+    return null;
+  }
+}
+```
+
+---
+
+### B. Widget Pengaturan Google Sheets di Android (`spreadsheet_settings_page.dart`):
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'spreadsheet_service.dart';
+
+class SpreadsheetSettingsPage extends StatefulWidget {
+  final String phoneNumber;
+
+  const SpreadsheetSettingsPage({super.key, required this.phoneNumber});
+
+  @override
+  State<SpreadsheetSettingsPage> createState() => _SpreadsheetSettingsPageState();
+}
+
+class _SpreadsheetSettingsPageState extends State<SpreadsheetSettingsPage> {
+  final _urlController = TextEditingController();
+  bool _autoSync = false;
+  bool _isLoading = true;
+  bool _isTesting = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    setState(() => _isLoading = true);
+    final data = await SpreadsheetService.getSheetSettings(widget.phoneNumber);
+    if (data != null) {
+      _urlController.text = data['sheetWebhookUrl'] ?? '';
+      _autoSync = data['autoSyncSheet'] ?? false;
+    }
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _testConnection() async {
+    if (_urlController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Masukkan Webhook URL terlebih dahulu!')),
+      );
+      return;
+    }
+    setState(() => _isTesting = true);
+    final res = await SpreadsheetService.testSheetWebhook(
+      phoneNumber: widget.phoneNumber,
+      sheetWebhookUrl: _urlController.text.trim(),
+    );
+    setState(() => _isTesting = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message'] ?? 'Uji coba selesai'),
+          backgroundColor: res['success'] == true ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    final success = await SpreadsheetService.saveSheetSettings(
+      phoneNumber: widget.phoneNumber,
+      sheetWebhookUrl: _urlController.text.trim().isEmpty ? null : _urlController.text.trim(),
+      autoSyncSheet: _autoSync,
+    );
+    setState(() => _isSaving = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Pengaturan berhasil disimpan!' : 'Gagal menyimpan'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryColor = Color(0xFFFF6D00);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Auto-Sync Spreadsheet', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: primaryColor))
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Info Box
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFFFE0B2)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('📊 Sinkronisasi Google Sheets Otomatis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: primaryColor)),
+                      SizedBox(height: 6),
+                      Text(
+                        '1. Buka Google Sheet > Ekstensi > Apps Script\n'
+                        '2. Tempelkan script listener PingKas\n'
+                        '3. Deploy as Web App (Akses: Anyone)\n'
+                        '4. Tempelkan URL Web App (/exec) di bawah',
+                        style: TextStyle(fontSize: 12, color: Colors.black87, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Webhook URL Input
+                TextField(
+                  controller: _urlController,
+                  decoration: InputDecoration(
+                    labelText: 'Google Apps Script Webhook URL',
+                    hintText: 'https://script.google.com/macros/s/.../exec',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: primaryColor, width: 2),
+                    ),
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+
+                // Auto-Sync Switch
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: primaryColor,
+                  title: const Text('Aktifkan Auto-Sync Real-time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text('Setiap transaksi via Bot/Web/App langsung masuk spreadsheet', style: TextStyle(fontSize: 12)),
+                  value: _autoSync,
+                  onChanged: (val) => setState(() => _autoSync = val),
+                ),
+                const SizedBox(height: 24),
+
+                // Test Button
+                OutlinedButton.icon(
+                  onPressed: _isTesting ? null : _testConnection,
+                  icon: _isTesting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.send_rounded, size: 18),
+                  label: const Text('Uji Coba Kirim 1 Baris Data'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Save Button
+                ElevatedButton(
+                  onPressed: _isSaving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan Pengaturan', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ],
+            ),
+    );
+  }
+}
+```
+
+---
+
+### C. Service Admin di Flutter (`admin_service.dart`):
 
 ```dart
 import 'dart:convert';
@@ -462,13 +879,18 @@ class AdminService {
 
 | Method | Endpoint | Deskripsi |
 |---|---|---|
-| `POST` | `/api/auth/login` | Login Flutter (mengembalikan user, `isAdmin`, dan sisa kuota) |
+| `POST` | `/api/auth/login` | Login Flutter (mengembalikan user, `isAdmin`, `sheetWebhookUrl`, dan sisa kuota) |
 | `GET` | `/api/auth/me` | Refresh profile user & kuota real-time |
-| `POST` | `/api/transactions` | Catat transaksi baru dari Flutter / WA (dengan validasi kuota) |
+| `POST` | `/api/transactions` | Catat transaksi baru dari Flutter / WA (auto-sync ke Google Sheets jika aktif) |
 | `GET` | `/api/transactions` | Ambil riwayat transaksi user (`?phoneNumber=...`) |
 | `GET` | `/api/transactions/summary` | Rekapitulasi keuangan & per kategori (`?phoneNumber=...`) |
+| `GET` | `/api/transactions/export` | Unduh file `.csv` / Excel rekapitulasi transaksi berformat UTF-8 BOM |
+| `GET` | `/api/user/sheet-settings` | Ambil Webhook URL & status auto-sync Google Sheets user |
+| `POST` | `/api/user/sheet-settings` | Simpan / update Webhook URL & toggle auto-sync Google Sheets |
+| `POST` | `/api/user/sheet-settings/test` | Kirim baris sampel untuk menguji koneksi Webhook Google Sheets |
 | `GET` | `/api/categories` | Ambil daftar kategori |
 | `POST` | `/api/admin/subscription` | **Admin:** Edit kuota maks transaksi, paket, masa aktif, dan status admin user |
 | `GET` | `/api/admin/subscription` | **Admin:** Lihat daftar seluruh user dan penggunaan kuotanya |
 | `GET` | `/api/admin/dashboard` | **Admin:** Metrik analitik & statistik Dashboard Direktur |
 | `GET` | `/api/admin/health` | **Admin:** Monitoring status kesehatan 3 engine (API, Database Supabase, dan Bot WA) |
+

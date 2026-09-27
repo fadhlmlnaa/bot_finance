@@ -31,6 +31,10 @@ model User {
   monthlyQuota    Int              @default(20) // Maksimal transaksi per bulan (dapat diubah admin)
   isAdmin         Boolean          @default(false)
 
+  // Google Sheets Auto-Sync Settings
+  sheetWebhookUrl String?          // Google Apps Script Webhook URL
+  autoSyncSheet   Boolean          @default(false)
+
   categories      Category[]
   transactions    Transaction[]
 }

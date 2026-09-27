@@ -16,8 +16,15 @@ import {
   ArrowDownLeft,
   X,
   CreditCard,
+  FileSpreadsheet,
+  Download,
+  Settings2,
+  Copy,
+  Check,
+  ExternalLink,
 } from "lucide-react";
 import { inferCategoryName } from "@/lib/categorizer";
+import { GOOGLE_APPS_SCRIPT_TEMPLATE } from "@/lib/sheets";
 
 interface UserProfile {
   id: string;
@@ -73,6 +80,18 @@ export default function UserPortalPage() {
   const [trxCategory, setTrxCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(
+    null
+  );
+
+  // Google Sheets Auto-Sync State
+  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+  const [sheetWebhookUrl, setSheetWebhookUrl] = useState("");
+  const [autoSyncSheet, setAutoSyncSheet] = useState(false);
+  const [isLoadingSheetSettings, setIsLoadingSheetSettings] = useState(false);
+  const [isSavingSheetSettings, setIsSavingSheetSettings] = useState(false);
+  const [isTestingSheet, setIsTestingSheet] = useState(false);
+  const [hasCopiedScript, setHasCopiedScript] = useState(false);
+  const [sheetFeedbackMsg, setSheetFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
 
@@ -139,6 +158,117 @@ export default function UserPortalPage() {
     }
   };
 
+  const handleOpenSheetModal = async () => {
+    if (!currentUser) return;
+    setIsSheetModalOpen(true);
+    setSheetFeedbackMsg(null);
+    setIsLoadingSheetSettings(true);
+
+    try {
+      const res = await fetch(
+        `/api/user/sheet-settings?phoneNumber=${encodeURIComponent(currentUser.phoneNumber)}`
+      );
+      const json = await res.json();
+      if (json.success && json.data) {
+        setSheetWebhookUrl(json.data.sheetWebhookUrl || "");
+        setAutoSyncSheet(json.data.autoSyncSheet || false);
+      }
+    } catch {
+      // Ignored
+    } finally {
+      setIsLoadingSheetSettings(false);
+    }
+  };
+
+  const handleSaveSheetSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    setIsSavingSheetSettings(true);
+    setSheetFeedbackMsg(null);
+
+    try {
+      const res = await fetch("/api/user/sheet-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber: currentUser.phoneNumber,
+          sheetWebhookUrl: sheetWebhookUrl.trim() || null,
+          autoSyncSheet,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menyimpan pengaturan");
+      }
+
+      setSheetFeedbackMsg({
+        type: "success",
+        text: "✅ Pengaturan Google Sheets berhasil disimpan!",
+      });
+    } catch (err: unknown) {
+      setSheetFeedbackMsg({
+        type: "error",
+        text: err instanceof Error ? err.message : "Terjadi kesalahan",
+      });
+    } finally {
+      setIsSavingSheetSettings(false);
+    }
+  };
+
+  const handleTestSheetWebhook = async () => {
+    if (!currentUser || !sheetWebhookUrl.trim()) {
+      setSheetFeedbackMsg({
+        type: "error",
+        text: "Masukkan Webhook URL Google Sheets terlebih dahulu!",
+      });
+      return;
+    }
+
+    setIsTestingSheet(true);
+    setSheetFeedbackMsg(null);
+
+    try {
+      const res = await fetch("/api/user/sheet-settings/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber: currentUser.phoneNumber,
+          sheetWebhookUrl: sheetWebhookUrl.trim(),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal mengirim data uji coba ke spreadsheet");
+      }
+
+      setSheetFeedbackMsg({
+        type: "success",
+        text: "🎉 Uji coba sukses! 1 baris sampel berhasil masuk ke Google Spreadsheet Anda.",
+      });
+    } catch (err: unknown) {
+      setSheetFeedbackMsg({
+        type: "error",
+        text: err instanceof Error ? err.message : "Gagal terhubung ke Google Spreadsheet",
+      });
+    } finally {
+      setIsTestingSheet(false);
+    }
+  };
+
+  const handleCopyScript = () => {
+    navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_TEMPLATE);
+    setHasCopiedScript(true);
+    setTimeout(() => setHasCopiedScript(false), 2500);
+  };
+
+  const handleExportCsv = () => {
+    if (!currentUser) return;
+    const url = `/api/transactions/export?phoneNumber=${encodeURIComponent(currentUser.phoneNumber)}`;
+    window.open(url, "_blank");
+  };
 
   const handleLogin = async (e?: React.FormEvent, customPhone?: string) => {
     if (e) e.preventDefault();
@@ -337,7 +467,7 @@ export default function UserPortalPage() {
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="w-full py-3.5 text-sm font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 text-sm font-extrabold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {isLoggingIn ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -382,10 +512,31 @@ export default function UserPortalPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  onClick={handleExportCsv}
+                  title="Unduh Rekap Spreadsheet (CSV / Excel)"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl transition-all shadow-xs"
+                >
+                  <Download className="w-4 h-4 text-emerald-600" />
+                  <span>Ekspor CSV / Excel</span>
+                </button>
+
+                <button
+                  onClick={handleOpenSheetModal}
+                  title="Atur Auto-Sync Google Sheets"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl transition-all shadow-xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-pingkas-teal" />
+                  <span>Auto-Sync Sheets</span>
+                  {autoSyncSheet && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
+                  )}
+                </button>
+
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-extrabold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-extrabold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/40 transition-all"
                 >
                   <PlusCircle className="w-4 h-4" />
                   <span>Tambah Transaksi</span>
@@ -413,7 +564,7 @@ export default function UserPortalPage() {
             {/* Quota Usage Bar & Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Quota Card */}
-              <div className="bg-gradient-to-br from-[#FFFDF9] to-[#FFF7ED] p-6 rounded-3xl border-2 border-orange-200/80 shadow-sm flex flex-col justify-between">
+              <div className="bg-linear-to-br from-[#FFFDF9] to-[#FFF7ED] p-6 rounded-3xl border-2 border-orange-200/80 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-extrabold text-pingkas-orange-dark uppercase tracking-wider">
@@ -801,7 +952,7 @@ export default function UserPortalPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
                   >
                     {isSubmitting ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -811,6 +962,165 @@ export default function UserPortalPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Google Sheets Auto-Sync Modal */}
+        {isSheetModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200 my-8">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-50 text-pingkas-teal flex items-center justify-center">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">
+                      Auto-Sync Google Spreadsheet
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Sinkronkan transaksi real-time ke Google Spreadsheet Anda
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsSheetModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {sheetFeedbackMsg && (
+                <div
+                  className={`mt-4 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    sheetFeedbackMsg.type === "success"
+                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                      : "bg-rose-50 text-rose-800 border border-rose-200"
+                  }`}
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{sheetFeedbackMsg.text}</span>
+                </div>
+              )}
+
+              {isLoadingSheetSettings ? (
+                <div className="py-12 flex flex-col items-center justify-center text-slate-500">
+                  <RefreshCw className="w-6 h-6 animate-spin text-pingkas-orange mb-2" />
+                  <p className="text-xs">Memuat pengaturan spreadsheet...</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveSheetSettings} className="mt-4 space-y-5">
+                  {/* Step Instructions Accordion / Card */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 text-xs space-y-2 text-slate-700">
+                    <div className="font-extrabold text-slate-900 flex items-center justify-between">
+                      <span>Cara Menghubungkan Google Sheets:</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyScript}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-pingkas-orange hover:text-pingkas-orange-dark bg-white px-2 py-1 rounded-lg border border-orange-200 shadow-2xs"
+                      >
+                        {hasCopiedScript ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-600">Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Salin Kode Apps Script</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-1 leading-relaxed">
+                      <li>Buka Google Spreadsheet baru di Google Drive Anda.</li>
+                      <li>Klik menu <b>Ekstensi (Extensions)</b> &gt; <b>Apps Script</b>.</li>
+                      <li>Hapus kode bawaan, lalu <b>Tempel / Paste</b> kode script yang telah Anda salin di atas.</li>
+                      <li>Klik tombol biru <b>Terapkan (Deploy)</b> &gt; <b>Deployment Baru (New deployment)</b>.</li>
+                      <li>Pilih jenis <b>Aplikasi Web (Web App)</b>, set &quot;Akses&quot; / Who has access ke <b>Siapa saja (Anyone)</b>.</li>
+                      <li>Salin <b>URL Aplikasi Web (Web App URL)</b> dan tempelkan pada kolom di bawah ini.</li>
+                    </ol>
+                  </div>
+
+                  {/* Webhook URL Input */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Google Apps Script Webhook URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                      value={sheetWebhookUrl}
+                      onChange={(e) => setSheetWebhookUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 text-xs font-mono rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Pastikan URL berakhiran <code>/exec</code> bukan <code>/edit</code>.
+                    </p>
+                  </div>
+
+                  {/* Auto-Sync Toggle Checkbox */}
+                  <div className="flex items-center justify-between p-3.5 bg-orange-50/50 rounded-2xl border border-orange-100">
+                    <div>
+                      <span className="text-xs font-extrabold text-slate-800 block">
+                        Auto-Sync Otomatis Real-time
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Setiap transaksi dicatat via WA / Web / Flutter, otomatis terkirim ke spreadsheet
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoSyncSheet}
+                        onChange={(e) => setAutoSyncSheet(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pingkas-orange"></div>
+                    </label>
+                  </div>
+
+                  {/* Modal Action Buttons */}
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTestSheetWebhook}
+                      disabled={isTestingSheet || !sheetWebhookUrl.trim()}
+                      className="px-4 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded-xl transition-colors flex items-center gap-1.5"
+                    >
+                      {isTestingSheet ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      )}
+                      <span>Uji Coba Kirim 1 Baris</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsSheetModalOpen(false)}
+                        className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                      >
+                        Tutup
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingSheetSettings}
+                        className="px-5 py-2 text-xs font-bold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                      >
+                        {isSavingSheetSettings ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <span>Simpan Pengaturan</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         )}

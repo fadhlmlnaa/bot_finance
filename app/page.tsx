@@ -112,13 +112,17 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-pingkas-teal">100%</div>
+                  <div className="text-2xl font-black text-pingkas-teal">
+                    100%
+                  </div>
                   <div className="text-xs font-semibold text-slate-500">
                     Auto Sync Real-time
                   </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-pingkas-orange">20+</div>
+                  <div className="text-2xl font-black text-pingkas-orange">
+                    20+
+                  </div>
                   <div className="text-xs font-semibold text-slate-500">
                     Kategori Otomatis
                   </div>
@@ -353,7 +357,7 @@ export default function HomePage() {
                 </div>
                 <div className="mb-6">
                   <span className="text-4xl font-black text-pingkas-orange">
-                    Rp 19.000
+                    Rp 15.000
                   </span>
                   <span className="text-sm text-slate-500"> / bulan</span>
                 </div>
@@ -407,7 +411,7 @@ export default function HomePage() {
                 </div>
                 <div className="mb-6">
                   <span className="text-4xl font-black text-slate-900">
-                    Rp 49.000
+                    Rp 29.000
                   </span>
                   <span className="text-sm text-slate-500"> / bulan</span>
                 </div>
