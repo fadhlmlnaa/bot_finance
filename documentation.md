@@ -1,6 +1,6 @@
 # Personal Finance Tracker Backend Documentation
 
-Dokumentasi arsitektur, skema database, API endpoints, sistem kategorisasi otomatis, rekapitulasi, serta panduan integrasi untuk bot WhatsApp (Baileys / whatsapp-web.js) dan Flutter Mobile App.
+Dokumentasi arsitektur, skema database, API endpoints, sistem kategorisasi otomatis, rekapitulasi, serta panduan menjalankan WhatsApp Bot (Baileys) dan Flutter Mobile App.
 
 ---
 
@@ -10,8 +10,9 @@ Dokumentasi arsitektur, skema database, API endpoints, sistem kategorisasi otoma
 - **Language**: TypeScript
 - **Database ORM**: Prisma ORM
 - **Database Engine**: PostgreSQL
+- **WhatsApp Engine**: `@whiskeysockets/baileys` (Multi-device QR authentication)
 - **Integrations Target**: 
-  - WhatsApp Bot (Baileys / whatsapp-web.js)
+  - WhatsApp Bot (`bot/index.ts`)
   - Mobile App (Flutter)
 
 ---
@@ -70,7 +71,7 @@ model Transaction {
 
 ## 3. Sistem Auto-Categorization (Klasifikasi Otomatis)
 
-Saat user mengirimkan transaksi dari WhatsApp atau Mobile App, sistem memiliki 2 cara menentukan Kategori:
+Saat user mengirimkan transaksi dari WhatsApp atau Mobile App, sistem menentukan Kategori melalui 2 cara:
 
 1. **Explicit Category**: Pengirim mengirimkan field `category` atau `categoryName` (contoh: `"Makanan"`, `"Kendaraan"`).
 2. **Smart Auto-Categorization**: Jika kategori tidak dikirimkan, backend secara otomatis mendeteksi kata kunci dari deskripsi transaksi:
@@ -81,29 +82,58 @@ Saat user mengirimkan transaksi dari WhatsApp atau Mobile App, sistem memiliki 2
    - **Kesehatan**: `obat`, `apotek`, `dokter`, `rumah sakit`, `vitamin`, dll.
    - **Gaji / Pemasukan**: `gaji`, `bonus`, `thr`, `freelance`, `proyek`, `dividen`, `cashback`, dll.
 
-> **Note**: Kategori yang terdeteksi otomatis akan disimpan ke tabel `Category` milik user yang bersangkutan jika belum ada, lalu dihubungkan langsung (`categoryId`) ke data `Transaction`.
+---
+
+## 4. WhatsApp Bot Service (Baileys)
+
+Bot WhatsApp berjalan mandiri via script `npm run bot` yang membaca pesan masuk secara real-time dan membalas langsung ke nomor pengirim.
+
+### A. Cara Menjalankan Bot WhatsApp:
+1. Jalankan perintah di terminal:
+   ```bash
+   npm run bot
+   ```
+2. Scan QR Code yang muncul di terminal menggunakan WhatsApp HP Anda:
+   - Buka WhatsApp di HP
+   - Klik **Titik Tiga** (Android) atau **Pengaturan** (iPhone)
+   - Pilih **Perangkat Tertaut (Linked Devices)** $\rightarrow$ **Tautkan Perangkat**
+   - Arahkan kamera HP ke QR Code terminal
+3. Sesi login akan disimpan otomatis di folder `bot_auth/` (sehingga restart bot tidak perlu scan ulang).
+
+### B. Format Chat yang Didukung:
+| Tipe | Contoh Pesan | Hasil Klasifikasi & Aksi |
+|---|---|---|
+| **Pengeluaran** | `Parkir 2000` | Kategori `Transportasi & Kendaraan`, Expense `Rp 2.000` |
+| **Pengeluaran** | `Beli sate ayam 50k` | Kategori `Makanan & Minuman`, Expense `Rp 50.000` |
+| **Pengeluaran** | `18rb Kopi susu` | Kategori `Makanan & Minuman`, Expense `Rp 18.000` |
+| **Pemasukan (+)** | `+5000000 Gaji bulanan` | Kategori `Gaji`, Income `Rp 5.000.000` |
+| **Pemasukan (+)** | `+ 1.5jt Proyek Web` | Kategori `Freelance`, Income `Rp 1.500.000` |
+| **Rekap / Laporan** | `rekap` atau `laporan` | Menampilkan total saldo & rincian per kategori |
+| **Bantuan** | `bantuan` atau `help` | Menampilkan panduan format chat |
+
+### C. Contoh Struk Balasan Bot:
+```text
+✅ *TRANSAKSI DICATAT*
+━━━━━━━━━━━━━━━━━━━━
+📅 Waktu    : 27 Sep 2026, 21.49
+📂 Kategori : *Makanan & Minuman*
+📝 Ket      : Beli sate ayam
+💸 Tipe     : *Pengeluaran (-)*
+💵 Nominal  : *Rp 50.000*
+━━━━━━━━━━━━━━━━━━━━
+_Ketik *rekap* untuk melihat total saldo._
+```
 
 ---
 
-## 4. API Endpoints
+## 5. API Endpoints
 
-Base URL: `http://localhost:3000` (atau domain production)
+Base URL: `http://localhost:3000`
 
 ### A. `POST /api/transactions`
-Mencatat transaksi baru. Endpoint ini secara otomatis melakukan **upsert User** dan **resolve/create Category**.
-
-#### Request Body:
-| Field | Type | Required | Deskripsi |
-|---|---|---|---|
-| `phoneNumber` | `string` | Ya | Nomor WhatsApp / HP user (e.g. `"6281234567890"`) |
-| `description` | `string` | Ya | Keterangan transaksi (e.g. `"Beli sate ayam"`, `"Parkir mall"`) |
-| `amount` | `number` | Ya | Jumlah nominal (harus angka positif > 0) |
-| `type` | `string` | Ya | Enum: `"EXPENSE"` atau `"INCOME"` |
-| `category` | `string` | Tidak | Nama kategori kustom (opsional, auto-inferred jika kosong) |
-| `categoryId` | `string` | Tidak | UUID Kategori yang sudah ada (opsional) |
-
-#### Contoh Request:
+Mencatat transaksi baru (upsert user & create category).
 ```json
+// Request Body:
 {
   "phoneNumber": "6281234567890",
   "description": "Beli sate ayam",
@@ -112,134 +142,16 @@ Mencatat transaksi baru. Endpoint ini secara otomatis melakukan **upsert User** 
 }
 ```
 
-#### Contoh Response Success (`200 OK`):
-```json
-{
-  "success": true,
-  "message": "Transaction recorded",
-  "data": {
-    "id": "07d310e8-4767-4b0d-9ecc-407ab50eaf2c",
-    "amount": 50000,
-    "description": "Beli sate ayam",
-    "type": "EXPENSE",
-    "date": "2026-09-27T14:49:12.003Z",
-    "userId": "4375a054-7a81-4b55-96f0-2ccebeb500c9",
-    "categoryId": "8a20e39c-1532-47d8-898d-af1c435f4646",
-    "user": {
-      "id": "4375a054-7a81-4b55-96f0-2ccebeb500c9",
-      "phoneNumber": "6281234567890",
-      "name": "User 7890"
-    },
-    "category": {
-      "id": "8a20e39c-1532-47d8-898d-af1c435f4646",
-      "name": "Makanan & Minuman",
-      "type": "EXPENSE"
-    }
-  }
-}
-```
-
----
-
 ### B. `GET /api/transactions`
-Mengambil riwayat transaksi yang diurutkan secara **descending (terbaru ke terlama)** berdasarkan `date`.
-
-#### Query Parameters:
-- `phoneNumber` *(opsional)*: Filter berdasarkan nomor HP user.
-- `category` *(opsional)*: Filter berdasarkan nama kategori (contoh: `?category=Makanan %26 Minuman`).
-- `categoryId` *(opsional)*: Filter berdasarkan UUID kategori.
-- `type` *(opsional)*: Filter `INCOME` atau `EXPENSE`.
-
----
+Mengambil riwayat transaksi terurut descending berdasarkan tanggal.
+- Query params: `?phoneNumber=...`, `?category=...`, `?type=...`
 
 ### C. `GET /api/transactions/summary`
-Mengambil rekapitulasi keuangan, saldo total, dan **breakdown pengeluaran/pemasukan per kategori**.
-
-#### Query Parameters:
-- `phoneNumber` *(opsional)*: Filter rekap untuk nomor HP tertentu.
-
-#### Contoh Request:
-```bash
-curl "http://localhost:3000/api/transactions/summary?phoneNumber=6281234567890"
-```
-
-#### Contoh Response:
-```json
-{
-  "success": true,
-  "summary": {
-    "totalIncome": 8000000,
-    "totalExpense": 70000,
-    "balance": 7930000,
-    "transactionCount": 3
-  },
-  "expenseByCategory": [
-    {
-      "categoryId": "8a20e39c-1532-47d8-898d-af1c435f4646",
-      "name": "Makanan & Minuman",
-      "type": "EXPENSE",
-      "total": 68000,
-      "count": 2
-    },
-    {
-      "categoryId": "30bdfa0e-22bf-4ad3-8f86-dfe11e72ffbf",
-      "name": "Transportasi & Kendaraan",
-      "type": "EXPENSE",
-      "total": 2000,
-      "count": 1
-    }
-  ],
-  "incomeByCategory": [
-    {
-      "categoryId": "3d719489-d6d5-4001-bc8a-6d0b03180a4f",
-      "name": "Gaji",
-      "type": "INCOME",
-      "total": 8000000,
-      "count": 1
-    }
-  ]
-}
-```
-
----
+Mengambil rekap total saldo dan breakdown pengeluaran/pemasukan per kategori.
+- Query params: `?phoneNumber=6281234567890`
 
 ### D. `GET /api/categories` & `POST /api/categories`
-- `GET /api/categories?phoneNumber=...`: Menampilkan daftar semua kategori.
-- `POST /api/categories`: Menambahkan kategori kustom baru.
-
----
-
-## 5. Panduan Integrasi WhatsApp Bot (Baileys / whatsapp-web.js)
-
-### Flow Chat WA ke Bot:
-1. User kirim pesan `Beli sate 50000` via WhatsApp.
-2. Bot mengirimkan request ke `POST /api/transactions`.
-3. Backend mengidentifikasi kategori `Makanan & Minuman` dan menyimpan ke database.
-4. Bot membalas pesan dengan struk rapi:
-   ```text
-   ✅ *Transaksi Berhasil Dicatat*
-   ━━━━━━━━━━━━━━━━━━━━
-   📅 Tanggal : 27/09/2026 21:49
-   📂 Kategori: Makanan & Minuman
-   📝 Ket     : Beli sate ayam
-   💰 Nominal : Rp 50.000
-   ━━━━━━━━━━━━━━━━━━━━
-   ```
-
-5. Jika user mengetik `rekap` atau `laporan`:
-   Bot memanggil `GET /api/transactions/summary?phoneNumber=...` dan membalas:
-   ```text
-   📊 *Rekapitulasi Keuangan Anda*
-   ━━━━━━━━━━━━━━━━━━━━
-   💵 Total Pemasukan   : Rp 8.000.000
-   💸 Total Pengeluaran : Rp 70.000
-   💳 Sisa Saldo        : Rp 7.930.000
-
-   📌 *Pengeluaran per Kategori:*
-   • Makanan & Minuman : Rp 68.000 (2x)
-   • Transportasi      : Rp 2.000 (1x)
-   ━━━━━━━━━━━━━━━━━━━━
-   ```
+Mengambil atau membuat kategori transaksi.
 
 ---
 
@@ -280,25 +192,14 @@ class TransactionModel {
 
 ---
 
-## 7. Setup & Menjalankan Project
+## 7. Cara Menjalankan Project
 
-1. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-
-2. **Konfigurasi Environment Variable (`.env`)**:
-   ```env
-   DATABASE_URL="postgresql://<user>:<password>@localhost:5432/finance_db?schema=public"
-   ```
-
-3. **Sinkronisasi Skema Database & Generate Prisma Client**:
-   ```bash
-   npx prisma db push
-   npx prisma generate
-   ```
-
-4. **Jalankan Development Server**:
+1. **Jalankan Next.js Web/API Server**:
    ```bash
    npm run dev
+   ```
+
+2. **Jalankan Bot WhatsApp di terminal terpisah**:
+   ```bash
+   npm run bot
    ```

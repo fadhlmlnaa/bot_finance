@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# whatsapp bot auth sessions
+bot_auth/
+auth_info_baileys/
+
