@@ -541,7 +541,56 @@ async function startWhatsAppBot() {
       }
 
       // ==========================================
-      // USER COMMANDS
+      // CEK REGISTRASI USER (Hanya User Terdaftar)
+      // ==========================================
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phoneNumber: phoneNumber },
+            { phoneNumber: phoneNumber.replace(/^62/, "0") },
+            { phoneNumber: phoneNumber.replace(/^0/, "62") },
+          ],
+        },
+      });
+
+      if (!user) {
+        if (isGroup) {
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `⚠️ *AKUN BELUM TERDAFTAR*\n\n` +
+                `Halo @${phoneNumber}, nomor WhatsApp Anda belum terdaftar di sistem PingKas.\n` +
+                `Silakan daftar/login terlebih dahulu melalui Web Portal atau Aplikasi PingKas untuk mulai mencatat keuangan.`,
+              mentions: [`${phoneNumber}@s.whatsapp.net`],
+            },
+            { quoted: msg }
+          );
+        } else {
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `⚠️ *NOMOR WHATSAPP BELUM TERDAFTAR*\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
+                `Halo *${senderName}* (@${phoneNumber})!\n\n` +
+                `Nomor WhatsApp Anda belum terdaftar di sistem *PingKas*.\n\n` +
+                `Silakan daftar atau login terlebih dahulu melalui:\n` +
+                `🌐 *Web Portal:* https://bot-finance-pi.vercel.app/portal\n` +
+                `📱 *Aplikasi Mobile PingKas*\n\n` +
+                `_Setelah mendaftar, Anda langsung mendapatkan kuota gratis dan bot siap mencatat transaksi Anda!_ 🚀\n` +
+                `━━━━━━━━━━━━━━━━━━━━`,
+              mentions: [`${phoneNumber}@s.whatsapp.net`],
+            },
+            { quoted: msg }
+          );
+        }
+        console.log(`⛔ Pesan ditolak: ${phoneNumber} belum terdaftar di database.`);
+        continue;
+      }
+
+      // ==========================================
+      // USER COMMANDS (Hanya untuk User Terdaftar)
       // ==========================================
 
       // 1. Command: Help / Bantuan
@@ -602,12 +651,6 @@ async function startWhatsAppBot() {
       // 3. Command: Status & Sisa Kuota
       if (/^(status|kuota|membership|akun)$/i.test(trimmedText)) {
         try {
-          const user = await prisma.user.upsert({
-            where: { phoneNumber },
-            update: { name: senderName },
-            create: { phoneNumber, name: senderName },
-          });
-
           const quota = await checkUserQuota(user);
           const expiryText = quota.expiresAt
             ? formatDateTime(quota.expiresAt)
@@ -664,15 +707,9 @@ async function startWhatsAppBot() {
         const rawUrl = parts[1].trim();
         const isOff = rawUrl.toLowerCase() === "off" || rawUrl.toLowerCase() === "disable";
 
-        await prisma.user.upsert({
-          where: { phoneNumber },
-          update: {
-            sheetWebhookUrl: isOff ? null : rawUrl,
-            autoSyncSheet: !isOff,
-          },
-          create: {
-            phoneNumber,
-            name: senderName,
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
             sheetWebhookUrl: isOff ? null : rawUrl,
             autoSyncSheet: !isOff,
           },
@@ -698,7 +735,7 @@ async function startWhatsAppBot() {
       ) {
         const backendBase =
           process.env.NEXT_PUBLIC_APP_URL || "https://bot-finance-pi.vercel.app";
-        const downloadUrl = `${backendBase}/api/transactions/export?phoneNumber=${phoneNumber}`;
+        const downloadUrl = `${backendBase}/api/transactions/export?phoneNumber=${user.phoneNumber}`;
 
         await sock.sendMessage(
           senderJid,
@@ -719,21 +756,6 @@ async function startWhatsAppBot() {
       // 6. Command: Rekapitulasi / Summary
       if (/^(rekap|laporan|summary|saldo)$/i.test(trimmedText)) {
         try {
-          const user = await prisma.user.findUnique({
-            where: { phoneNumber },
-          });
-
-          if (!user) {
-            await sock.sendMessage(
-              senderJid,
-              {
-                text: "Belum ada transaksi yang tercatat untuk nomor Anda. Coba kirim pesan seperti: `Parkir 2000`",
-              },
-              { quoted: msg },
-            );
-            continue;
-          }
-
           const transactions = await prisma.transaction.findMany({
             where: { userId: user.id },
             include: { category: true },
@@ -813,16 +835,6 @@ async function startWhatsAppBot() {
       }
 
       try {
-        // Upsert user
-        const user = await prisma.user.upsert({
-          where: { phoneNumber },
-          update: { name: senderName },
-          create: {
-            phoneNumber,
-            name: senderName,
-          },
-        });
-
         // Check Membership Quota
         const quota = await checkUserQuota(user);
         if (!quota.isAllowed) {
