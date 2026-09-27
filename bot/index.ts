@@ -3,6 +3,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
 } from "@whiskeysockets/baileys";
+import http from "http";
 import pino from "pino";
 import qrcode from "qrcode-terminal";
 import path from "path";
@@ -15,6 +16,107 @@ import {
 } from "./parser";
 
 const AUTH_DIR = path.join(process.cwd(), "bot_auth");
+
+// State for web status and QR rendering
+let latestQr: string | null = null;
+let isConnected = false;
+let botPhoneNumber = "";
+
+/**
+ * Lightweight HTTP server for Render health checks and Web QR code display
+ */
+const PORT = process.env.PORT || 3001;
+const server = http.createServer((req, res) => {
+  const url = req.url || "/";
+
+  if (url === "/health" || url === "/") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(
+      JSON.stringify({
+        status: "ok",
+        connected: isConnected,
+        botNumber: botPhoneNumber || "Not connected yet",
+        uptime: process.uptime(),
+      })
+    );
+  }
+
+  if (url === "/qr") {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    if (isConnected) {
+      return res.end(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>WhatsApp Bot Status</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0f172a; color: #f8fafc; }
+            .card { background: #1e293b; padding: 2rem; border-radius: 1rem; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            .badge { background: #22c55e; color: #000; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h1>✅ WhatsApp Bot Terhubung!</h1>
+            <p><span class="badge">ONLINE</span></p>
+            <p>Nomor Akun: <strong>${botPhoneNumber}</strong></p>
+            <p>Bot siap menerima chat pencatatan keuangan 24/7.</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    if (latestQr) {
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+        latestQr
+      )}`;
+      return res.end(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Scan QR WhatsApp Bot</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta http-equiv="refresh" content="5">
+          <style>
+            body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0f172a; color: #f8fafc; }
+            .card { background: #1e293b; padding: 2rem; border-radius: 1rem; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            img { background: white; padding: 12px; border-radius: 8px; margin: 1rem 0; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>📲 Scan QR WhatsApp Bot</h2>
+            <p>Buka WhatsApp di HP &rarr; Perangkat Tertaut &rarr; Tautkan Perangkat</p>
+            <img src="${qrImageUrl}" alt="Scan WhatsApp QR" width="280" height="280" />
+            <p style="color: #94a3b8; font-size: 0.875rem;">Halaman akan refresh otomatis setiap 5 detik...</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    return res.end(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta http-equiv="refresh" content="3">
+      </head>
+      <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+        <h3>⏳ Menyiapkan sesi WhatsApp... Silakan tunggu beberapa detik.</h3>
+      </body>
+      </html>
+    `);
+  }
+
+  res.writeHead(404, { "Content-Type": "text/plain" });
+  res.end("Not Found");
+});
+
+server.listen(PORT, () => {
+  console.log(`🌐 HTTP Server aktif di port ${PORT} (Health check & Web QR ready)`);
+});
 
 /**
  * Checks if a phone number is permitted based on ALLOWED_NUMBERS in .env
@@ -70,6 +172,8 @@ async function startWhatsAppBot() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
+      latestQr = qr;
+      isConnected = false;
       console.clear();
       console.log("\n=======================================================");
       console.log("📲 SCAN QR CODE DI BAWAH MENGGUNAKAN WHATSAPP DI HP:");
@@ -79,6 +183,7 @@ async function startWhatsAppBot() {
     }
 
     if (connection === "close") {
+      isConnected = false;
       const statusCode = (lastDisconnect?.error as { output?: { statusCode?: number } })?.output
         ?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
@@ -91,8 +196,11 @@ async function startWhatsAppBot() {
         console.log("❌ Sesi telah logout. Silakan jalankan bot kembali untuk scan QR baru.");
       }
     } else if (connection === "open") {
+      isConnected = true;
+      latestQr = null;
+      botPhoneNumber = sock.user?.id?.split(":")[0]?.split("@")[0] || "";
       console.log("\n✅ WHATSAPP BOT BERHASIL TERHUBUNG!");
-      console.log(`📱 Nomor Akun Bot: ${sock.user?.id?.split(":")[0]?.split("@")[0] || "Unknown"}`);
+      console.log(`📱 Nomor Akun Bot: ${botPhoneNumber}`);
       console.log("🚀 Siap menerima pesan pencatatan keuangan.\n");
     }
   });

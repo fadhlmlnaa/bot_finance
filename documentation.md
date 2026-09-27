@@ -11,7 +11,7 @@ Dokumentasi arsitektur, skema database, API endpoints, sistem kategorisasi otoma
 - **Database ORM**: Prisma ORM
 - **Database Engine**: PostgreSQL
 - **WhatsApp Engine**: `@whiskeysockets/baileys` (Multi-device QR authentication)
-- **Integrations Target**: 
+- **Integrations Target**:
   - WhatsApp Bot (`bot/index.ts`)
   - Mobile App (Flutter)
 
@@ -89,6 +89,7 @@ Saat user mengirimkan transaksi dari WhatsApp atau Mobile App, sistem menentukan
 Bot WhatsApp berjalan mandiri via script `npm run bot` yang membaca pesan masuk secara real-time dan membalas langsung ke nomor pengirim.
 
 ### A. Cara Menjalankan Bot WhatsApp:
+
 1. Jalankan perintah di terminal:
    ```bash
    npm run bot
@@ -101,17 +102,19 @@ Bot WhatsApp berjalan mandiri via script `npm run bot` yang membaca pesan masuk 
 3. Sesi login akan disimpan otomatis di folder `bot_auth/` (sehingga restart bot tidak perlu scan ulang).
 
 ### B. Format Chat yang Didukung:
-| Tipe | Contoh Pesan | Hasil Klasifikasi & Aksi |
-|---|---|---|
-| **Pengeluaran** | `Parkir 2000` | Kategori `Transportasi & Kendaraan`, Expense `Rp 2.000` |
-| **Pengeluaran** | `Beli sate ayam 50k` | Kategori `Makanan & Minuman`, Expense `Rp 50.000` |
-| **Pengeluaran** | `18rb Kopi susu` | Kategori `Makanan & Minuman`, Expense `Rp 18.000` |
-| **Pemasukan (+)** | `+5000000 Gaji bulanan` | Kategori `Gaji`, Income `Rp 5.000.000` |
-| **Pemasukan (+)** | `+ 1.5jt Proyek Web` | Kategori `Freelance`, Income `Rp 1.500.000` |
-| **Rekap / Laporan** | `rekap` atau `laporan` | Menampilkan total saldo & rincian per kategori |
-| **Bantuan** | `bantuan` atau `help` | Menampilkan panduan format chat |
+
+| Tipe                | Contoh Pesan            | Hasil Klasifikasi & Aksi                                |
+| ------------------- | ----------------------- | ------------------------------------------------------- |
+| **Pengeluaran**     | `Parkir 2000`           | Kategori `Transportasi & Kendaraan`, Expense `Rp 2.000` |
+| **Pengeluaran**     | `Beli sate ayam 50k`    | Kategori `Makanan & Minuman`, Expense `Rp 50.000`       |
+| **Pengeluaran**     | `18rb Kopi susu`        | Kategori `Makanan & Minuman`, Expense `Rp 18.000`       |
+| **Pemasukan (+)**   | `+5000000 Gaji bulanan` | Kategori `Gaji`, Income `Rp 5.000.000`                  |
+| **Pemasukan (+)**   | `+ 1.5jt Proyek Web`    | Kategori `Freelance`, Income `Rp 1.500.000`             |
+| **Rekap / Laporan** | `rekap` atau `laporan`  | Menampilkan total saldo & rincian per kategori          |
+| **Bantuan**         | `bantuan` atau `help`   | Menampilkan panduan format chat                         |
 
 ### C. Contoh Struk Balasan Bot:
+
 ```text
 ✅ *TRANSAKSI DICATAT*
 ━━━━━━━━━━━━━━━━━━━━
@@ -125,12 +128,14 @@ _Ketik *rekap* untuk melihat total saldo._
 ```
 
 ### D. Konfigurasi Whitelist Nomor HP (Keamanan):
+
 Agar bot hanya memproses pesan dari nomor Anda (dan mengabaikan chat dari kontak lain / grup), atur di file `.env`:
 
 ```env
 # Masukkan nomor WA yang diizinkan (format 628xxx atau 08xxx, pisahkan dengan koma jika lebih dari 1)
 ALLOWED_NUMBERS="6281234567890,6289876543210"
 ```
+
 - **Jika diisi**: Bot hanya akan merespon dan mencatat transaksi dari nomor yang terdaftar di whitelist. Pesan dari nomor lain akan diabaikan secara senyap tanpa mengganggu chat biasa.
 - **Jika dikosongkan atau `*`**: Mode terbuka (semua nomor yang chat akan otomatis dicatat datanya secara terpisah per user).
 
@@ -141,7 +146,9 @@ ALLOWED_NUMBERS="6281234567890,6289876543210"
 Base URL: `http://localhost:3000`
 
 ### A. `POST /api/transactions`
+
 Mencatat transaksi baru (upsert user & create category).
+
 ```json
 // Request Body:
 {
@@ -153,14 +160,19 @@ Mencatat transaksi baru (upsert user & create category).
 ```
 
 ### B. `GET /api/transactions`
+
 Mengambil riwayat transaksi terurut descending berdasarkan tanggal.
+
 - Query params: `?phoneNumber=...`, `?category=...`, `?type=...`
 
 ### C. `GET /api/transactions/summary`
+
 Mengambil rekap total saldo dan breakdown pengeluaran/pemasukan per kategori.
+
 - Query params: `?phoneNumber=6281234567890`
 
 ### D. `GET /api/categories` & `POST /api/categories`
+
 Mengambil atau membuat kategori transaksi.
 
 ---
@@ -205,6 +217,7 @@ class TransactionModel {
 ## 7. Cara Menjalankan Project
 
 1. **Jalankan Next.js Web/API Server**:
+
    ```bash
    npm run dev
    ```
@@ -213,3 +226,4 @@ class TransactionModel {
    ```bash
    npm run bot
    ```
+   17Agustus!!
