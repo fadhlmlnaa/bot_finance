@@ -124,6 +124,16 @@ Bot WhatsApp berjalan mandiri via script `npm run bot` yang membaca pesan masuk 
 _Ketik *rekap* untuk melihat total saldo._
 ```
 
+### D. Konfigurasi Whitelist Nomor HP (Keamanan):
+Agar bot hanya memproses pesan dari nomor Anda (dan mengabaikan chat dari kontak lain / grup), atur di file `.env`:
+
+```env
+# Masukkan nomor WA yang diizinkan (format 628xxx atau 08xxx, pisahkan dengan koma jika lebih dari 1)
+ALLOWED_NUMBERS="6281234567890,6289876543210"
+```
+- **Jika diisi**: Bot hanya akan merespon dan mencatat transaksi dari nomor yang terdaftar di whitelist. Pesan dari nomor lain akan diabaikan secara senyap tanpa mengganggu chat biasa.
+- **Jika dikosongkan atau `*`**: Mode terbuka (semua nomor yang chat akan otomatis dicatat datanya secara terpisah per user).
+
 ---
 
 ## 5. API Endpoints

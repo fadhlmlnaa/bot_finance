@@ -16,11 +16,43 @@ import {
 
 const AUTH_DIR = path.join(process.cwd(), "bot_auth");
 
+/**
+ * Checks if a phone number is permitted based on ALLOWED_NUMBERS in .env
+ */
+function isPhoneNumberAllowed(rawNumber: string): boolean {
+  const allowedEnv = process.env.ALLOWED_NUMBERS;
+  if (!allowedEnv || allowedEnv.trim() === "" || allowedEnv.trim() === "*") {
+    // Whitelist is not set or set to wildcard '*', all numbers allowed
+    return true;
+  }
+
+  const cleanSender = rawNumber.replace(/\D/g, "");
+  const allowedList = allowedEnv
+    .split(",")
+    .map((n) => n.trim().replace(/\D/g, ""))
+    .filter(Boolean);
+
+  return allowedList.some((allowed) => {
+    if (cleanSender === allowed) return true;
+    // Normalize Indonesian prefix: 08xx <-> 628xx
+    if (allowed.startsWith("0") && cleanSender === "62" + allowed.slice(1)) return true;
+    if (cleanSender.startsWith("0") && allowed === "62" + cleanSender.slice(1)) return true;
+    return false;
+  });
+}
+
 async function startWhatsAppBot() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
 
   console.log(`🤖 Menggunakan Baileys v${version.join(".")} (Latest: ${isLatest})`);
+
+  const allowedConfig = process.env.ALLOWED_NUMBERS?.trim();
+  if (allowedConfig && allowedConfig !== "*") {
+    console.log(`🔒 Mode Whitelist AKTIF. Nomor yang diizinkan: ${allowedConfig}`);
+  } else {
+    console.log(`🌐 Mode Terbuka (Semua nomor diizinkan).`);
+  }
 
   const sock = makeWASocket({
     version,
@@ -69,17 +101,24 @@ async function startWhatsAppBot() {
     if (type !== "notify") return;
 
     for (const msg of messages) {
-      // Ignore messages sent by bot itself or broadcast/status updates
-      if (!msg.message || msg.key.fromMe || msg.key.remoteJid?.endsWith("@broadcast")) {
+      // Ignore broadcast/status updates
+      if (!msg.message || msg.key.remoteJid?.endsWith("@broadcast")) {
         continue;
       }
 
+      // Handle both incoming chats and "Message Yourself" (fromMe)
       const senderJid = msg.key.remoteJid;
       if (!senderJid) continue;
 
       // Extract phone number from JID (e.g., 6281234567890@s.whatsapp.net -> 6281234567890)
-      const phoneNumber = senderJid.split("@")[0].replace(/\D/g, "");
+      const phoneNumber = senderJid.split("@")[0].split(":")[0].replace(/\D/g, "");
       const senderName = msg.pushName || `User ${phoneNumber.slice(-4)}`;
+
+      // Check Whitelist
+      if (!isPhoneNumberAllowed(phoneNumber)) {
+        // Silently ignore messages from non-whitelisted numbers so it doesn't disturb normal chats
+        continue;
+      }
 
       // Extract text content from various message types
       const textMessage =
