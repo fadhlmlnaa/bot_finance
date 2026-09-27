@@ -1,6 +1,6 @@
 import makeWASocket, {
   DisconnectReason,
-  useMultiFileAuthState,
+  useMultiFileAuthState as getMultiFileAuthState,
   fetchLatestBaileysVersion,
   WASocket,
 } from "@whiskeysockets/baileys";
@@ -13,11 +13,7 @@ import { prisma } from "../lib/prisma";
 import { inferCategoryName } from "../lib/categorizer";
 import { checkUserQuota, updateUserSubscription } from "../lib/subscription";
 import { SubscriptionPlan } from "@prisma/client";
-import {
-  parseWhatsAppMessage,
-  formatRupiah,
-  formatDateTime,
-} from "./parser";
+import { parseWhatsAppMessage, formatRupiah, formatDateTime } from "./parser";
 
 const AUTH_DIR = path.join(process.cwd(), "bot_auth");
 
@@ -69,7 +65,7 @@ const server = http.createServer(async (req, res) => {
         connected: isConnected,
         botNumber: botPhoneNumber || "Not connected yet",
         uptime: process.uptime(),
-      })
+      }),
     );
   }
 
@@ -114,7 +110,7 @@ const server = http.createServer(async (req, res) => {
 
     if (latestQr) {
       const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-        latestQr
+        latestQr,
       )}`;
       return res.end(`
         <!DOCTYPE html>
@@ -159,7 +155,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🌐 HTTP Server aktif di port ${PORT} (Health check & Web QR ready)`);
+  console.log(
+    `🌐 HTTP Server aktif di port ${PORT} (Health check & Web QR ready)`,
+  );
 });
 
 /**
@@ -179,8 +177,10 @@ function isPhoneNumberAllowed(rawNumber: string): boolean {
 
   return allowedList.some((allowed) => {
     if (cleanSender === allowed) return true;
-    if (allowed.startsWith("0") && cleanSender === "62" + allowed.slice(1)) return true;
-    if (cleanSender.startsWith("0") && allowed === "62" + cleanSender.slice(1)) return true;
+    if (allowed.startsWith("0") && cleanSender === "62" + allowed.slice(1))
+      return true;
+    if (cleanSender.startsWith("0") && allowed === "62" + cleanSender.slice(1))
+      return true;
     return false;
   });
 }
@@ -199,7 +199,8 @@ function isUserAdmin(phoneNumber: string, botOwnerNumber: string): boolean {
   return adminList.some((adm) => {
     if (phoneNumber === adm) return true;
     if (adm.startsWith("0") && phoneNumber === "62" + adm.slice(1)) return true;
-    if (phoneNumber.startsWith("0") && adm === "62" + phoneNumber.slice(1)) return true;
+    if (phoneNumber.startsWith("0") && adm === "62" + phoneNumber.slice(1))
+      return true;
     return false;
   });
 }
@@ -208,10 +209,12 @@ function isUserAdmin(phoneNumber: string, botOwnerNumber: string): boolean {
 const processedMsgIds = new Set<string>();
 
 async function startWhatsAppBot() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { state, saveCreds } = await getMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
 
-  console.log(`🤖 Menggunakan Baileys v${version.join(".")} (Latest: ${isLatest})`);
+  console.log(
+    `🤖 Menggunakan Baileys v${version.join(".")} (Latest: ${isLatest})`,
+  );
 
   const sock = makeWASocket({
     version,
@@ -235,21 +238,28 @@ async function startWhatsAppBot() {
       console.log("📲 SCAN QR CODE DI BAWAH MENGGUNAKAN WHATSAPP DI HP:");
       console.log("=======================================================\n");
       qrcode.generate(qr, { small: true });
-      console.log("\nBuka WhatsApp -> Pengaturan / Titik Tiga -> Perangkat Tertaut -> Tautkan Perangkat\n");
+      console.log(
+        "\nBuka WhatsApp -> Pengaturan / Titik Tiga -> Perangkat Tertaut -> Tautkan Perangkat\n",
+      );
     }
 
     if (connection === "close") {
       isConnected = false;
-      const statusCode = (lastDisconnect?.error as { output?: { statusCode?: number } })?.output
-        ?.statusCode;
+      const statusCode = (
+        lastDisconnect?.error as { output?: { statusCode?: number } }
+      )?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-      console.log(`⚠️ Koneksi terputus (status: ${statusCode}). Reconnect: ${shouldReconnect}`);
+      console.log(
+        `⚠️ Koneksi terputus (status: ${statusCode}). Reconnect: ${shouldReconnect}`,
+      );
 
       if (shouldReconnect) {
         startWhatsAppBot();
       } else {
-        console.log("❌ Sesi telah logout. Silakan jalankan bot kembali untuk scan QR baru.");
+        console.log(
+          "❌ Sesi telah logout. Silakan jalankan bot kembali untuk scan QR baru.",
+        );
         resetWhatsAppSession();
       }
     } else if (connection === "open") {
@@ -311,8 +321,12 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      const botOwnerNumber = sock.user?.id?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
-      let phoneNumber = senderJid.split("@")[0].split(":")[0].replace(/\D/g, "");
+      const botOwnerNumber =
+        sock.user?.id?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
+      let phoneNumber = senderJid
+        .split("@")[0]
+        .split(":")[0]
+        .replace(/\D/g, "");
 
       if (msg.key.fromMe || senderJid.endsWith("@lid")) {
         if (botOwnerNumber) {
@@ -324,11 +338,15 @@ async function startWhatsAppBot() {
 
       // Check Whitelist
       if (!isPhoneNumberAllowed(phoneNumber)) {
-        console.log(`⛔ Pesan diabaikan: ${phoneNumber} tidak terdaftar di whitelist.`);
+        console.log(
+          `⛔ Pesan diabaikan: ${phoneNumber} tidak terdaftar di whitelist.`,
+        );
         continue;
       }
 
-      console.log(`📩 Pesan masuk dari ${senderName} (${phoneNumber}): "${trimmedText}"`);
+      console.log(
+        `📩 Pesan masuk dari ${senderName} (${phoneNumber}): "${trimmedText}"`,
+      );
 
       // ==========================================
       // ADMIN COMMANDS (Khusus Owner / Admin)
@@ -351,7 +369,7 @@ async function startWhatsAppBot() {
                 `• \`!upgrade 62812345678 30 UNLIMITED\`\n` +
                 `• \`!upgrade 62812345678 30 PRO 500\` (Kustom kuota 500)`,
             },
-            { quoted: msg }
+            { quoted: msg },
           );
           continue;
         }
@@ -361,11 +379,13 @@ async function startWhatsAppBot() {
         const rawPlan = parts[3].toUpperCase();
         const customQuota = parts[4] ? parseInt(parts[4]) : undefined;
 
-        if (!Object.values(SubscriptionPlan).includes(rawPlan as SubscriptionPlan)) {
+        if (
+          !Object.values(SubscriptionPlan).includes(rawPlan as SubscriptionPlan)
+        ) {
           await sock.sendMessage(
             senderJid,
             { text: `❌ Paket tidak valid. Pilih: FREE, PRO, atau UNLIMITED.` },
-            { quoted: msg }
+            { quoted: msg },
           );
           continue;
         }
@@ -390,11 +410,15 @@ async function startWhatsAppBot() {
                 `⏳ Aktif s/d: *${updated.subscriptionEnd ? formatDateTime(updated.subscriptionEnd) : "Permanen"}*\n` +
                 `━━━━━━━━━━━━━━━━━━━━`,
             },
-            { quoted: msg }
+            { quoted: msg },
           );
         } catch (err) {
           console.error("Gagal upgrade:", err);
-          await sock.sendMessage(senderJid, { text: `❌ Gagal upgrade user: ${err}` }, { quoted: msg });
+          await sock.sendMessage(
+            senderJid,
+            { text: `❌ Gagal upgrade user: ${err}` },
+            { quoted: msg },
+          );
         }
         continue;
       }
@@ -405,8 +429,10 @@ async function startWhatsAppBot() {
         if (parts.length < 3) {
           await sock.sendMessage(
             senderJid,
-            { text: `⚠️ *Format:*\n\`!setkuota <nomor_hp> <jumlah_kuota>\`\nContoh: \`!setkuota 62812345678 300\`` },
-            { quoted: msg }
+            {
+              text: `⚠️ *Format:*\n\`!setkuota <nomor_hp> <jumlah_kuota>\`\nContoh: \`!setkuota 62812345678 300\``,
+            },
+            { quoted: msg },
           );
           continue;
         }
@@ -415,7 +441,11 @@ async function startWhatsAppBot() {
         const newQuota = parseInt(parts[2]);
 
         if (isNaN(newQuota) || newQuota <= 0) {
-          await sock.sendMessage(senderJid, { text: `❌ Jumlah kuota harus angka positif.` }, { quoted: msg });
+          await sock.sendMessage(
+            senderJid,
+            { text: `❌ Jumlah kuota harus angka positif.` },
+            { quoted: msg },
+          );
           continue;
         }
 
@@ -435,10 +465,15 @@ async function startWhatsAppBot() {
                 `📊 Kuota : *${user.monthlyQuota} transaksi/bulan*\n` +
                 `━━━━━━━━━━━━━━━━━━━━`,
             },
-            { quoted: msg }
+            { quoted: msg },
           );
         } catch (err) {
-          await sock.sendMessage(senderJid, { text: `❌ User tidak ditemukan di database.` }, { quoted: msg });
+          console.error("Gagal set kuota:", err);
+          await sock.sendMessage(
+            senderJid,
+            { text: `❌ User tidak ditemukan di database.` },
+            { quoted: msg },
+          );
         }
         continue;
       }
@@ -466,7 +501,11 @@ async function startWhatsAppBot() {
           `• \`bantuan\` : Tampilkan menu ini\n` +
           `━━━━━━━━━━━━━━━━━━━━`;
 
-        await sock.sendMessage(senderJid, { text: helpMessage }, { quoted: msg });
+        await sock.sendMessage(
+          senderJid,
+          { text: helpMessage },
+          { quoted: msg },
+        );
         continue;
       }
 
@@ -490,7 +529,11 @@ async function startWhatsAppBot() {
           `2. Admin akan langsung mengaktifkan akun Anda.\n` +
           `━━━━━━━━━━━━━━━━━━━━`;
 
-        await sock.sendMessage(senderJid, { text: pricingText }, { quoted: msg });
+        await sock.sendMessage(
+          senderJid,
+          { text: pricingText },
+          { quoted: msg },
+        );
         continue;
       }
 
@@ -504,7 +547,9 @@ async function startWhatsAppBot() {
           });
 
           const quota = await checkUserQuota(user);
-          const expiryText = quota.expiresAt ? formatDateTime(quota.expiresAt) : "Permanen (Free)";
+          const expiryText = quota.expiresAt
+            ? formatDateTime(quota.expiresAt)
+            : "Permanen (Free)";
 
           const statusText =
             `👑 *STATUS MEMBERSHIP ANDA*\n` +
@@ -518,10 +563,18 @@ async function startWhatsAppBot() {
             `━━━━━━━━━━━━━━━━━━━━\n` +
             `_Ketik *paket* untuk melihat pilihan upgrade._`;
 
-          await sock.sendMessage(senderJid, { text: statusText }, { quoted: msg });
+          await sock.sendMessage(
+            senderJid,
+            { text: statusText },
+            { quoted: msg },
+          );
         } catch (err) {
           console.error("Gagal cek status:", err);
-          await sock.sendMessage(senderJid, { text: "❌ Terjadi kendala saat memeriksa status kuota." }, { quoted: msg });
+          await sock.sendMessage(
+            senderJid,
+            { text: "❌ Terjadi kendala saat memeriksa status kuota." },
+            { quoted: msg },
+          );
         }
         continue;
       }
@@ -539,7 +592,7 @@ async function startWhatsAppBot() {
               {
                 text: "Belum ada transaksi yang tercatat untuk nomor Anda. Coba kirim pesan seperti: `Parkir 2000`",
               },
-              { quoted: msg }
+              { quoted: msg },
             );
             continue;
           }
@@ -551,7 +604,10 @@ async function startWhatsAppBot() {
 
           let totalIncome = 0;
           let totalExpense = 0;
-          const expenseCategoryMap: Record<string, { total: number; count: number }> = {};
+          const expenseCategoryMap: Record<
+            string,
+            { total: number; count: number }
+          > = {};
 
           for (const t of transactions) {
             if (t.type === "INCOME") {
@@ -569,14 +625,18 @@ async function startWhatsAppBot() {
 
           const balance = totalIncome - totalExpense;
           const sortedCategories = Object.entries(expenseCategoryMap).sort(
-            (a, b) => b[1].total - a[1].total
+            (a, b) => b[1].total - a[1].total,
           );
 
           let categoryText = "";
           if (sortedCategories.length > 0) {
-            categoryText = `\n📌 *Pengeluaran per Kategori:*\n` +
+            categoryText =
+              `\n📌 *Pengeluaran per Kategori:*\n` +
               sortedCategories
-                .map(([name, stat]) => `• ${name}: *${formatRupiah(stat.total)}* (${stat.count}x)`)
+                .map(
+                  ([name, stat]) =>
+                    `• ${name}: *${formatRupiah(stat.total)}* (${stat.count}x)`,
+                )
                 .join("\n");
           }
 
@@ -591,13 +651,17 @@ async function startWhatsAppBot() {
             `━━━━━━━━━━━━━━━━━━━━` +
             (categoryText ? `${categoryText}\n━━━━━━━━━━━━━━━━━━━━` : "");
 
-          await sock.sendMessage(senderJid, { text: summaryText }, { quoted: msg });
+          await sock.sendMessage(
+            senderJid,
+            { text: summaryText },
+            { quoted: msg },
+          );
         } catch (error) {
           console.error("Gagal mengambil rekap:", error);
           await sock.sendMessage(
             senderJid,
             { text: "❌ Terjadi kendala saat mengambil data rekap." },
-            { quoted: msg }
+            { quoted: msg },
           );
         }
         continue;
@@ -634,7 +698,11 @@ async function startWhatsAppBot() {
             `👉 Ketik *paket* untuk melihat info upgrade ke paket *PRO* atau *UNLIMITED*.\n` +
             `━━━━━━━━━━━━━━━━━━━━`;
 
-          await sock.sendMessage(senderJid, { text: quotaExceededMsg }, { quoted: msg });
+          await sock.sendMessage(
+            senderJid,
+            { text: quotaExceededMsg },
+            { quoted: msg },
+          );
           continue;
         }
 
@@ -675,7 +743,9 @@ async function startWhatsAppBot() {
         const icon = isIncome ? "💰" : "💸";
         const typeLabel = isIncome ? "Pemasukan (+)" : "Pengeluaran (-)";
         const newUsed = quota.used + 1;
-        const quotaDisplay = quota.isUnlimited ? "∞" : `${newUsed}/${quota.maxQuota}`;
+        const quotaDisplay = quota.isUnlimited
+          ? "∞"
+          : `${newUsed}/${quota.maxQuota}`;
 
         const receiptMessage =
           `✅ *TRANSAKSI DICATAT*\n` +
@@ -689,14 +759,20 @@ async function startWhatsAppBot() {
           `📊 Kuota Bln Ini : *${quotaDisplay}* (${quota.plan})\n` +
           `_Ketik *rekap* untuk melihat total saldo._`;
 
-        await sock.sendMessage(senderJid, { text: receiptMessage }, { quoted: msg });
-        console.log(`✅ Berhasil mencatat ${parsed.type} ${parsed.amount} untuk ${phoneNumber}`);
+        await sock.sendMessage(
+          senderJid,
+          { text: receiptMessage },
+          { quoted: msg },
+        );
+        console.log(
+          `✅ Berhasil mencatat ${parsed.type} ${parsed.amount} untuk ${phoneNumber}`,
+        );
       } catch (error) {
         console.error("Gagal mencatat transaksi WA:", error);
         await sock.sendMessage(
           senderJid,
           { text: "❌ Maaf, gagal mencatat transaksi. Coba lagi nanti." },
-          { quoted: msg }
+          { quoted: msg },
         );
       }
     }

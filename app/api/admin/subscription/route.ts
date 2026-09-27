@@ -12,9 +12,10 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Fields 'phoneNumber' and 'plan' (FREE | PRO | UNLIMITED) are required.",
+          message:
+            "Fields 'phoneNumber' and 'plan' (FREE | PRO | UNLIMITED) are required.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
           success: false,
           message: `Invalid plan. Must be one of: ${Object.values(SubscriptionPlan).join(", ")}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
       phoneNumber,
       plan,
       durationDays: durationDays ? parseInt(durationDays) : 30,
-      customQuota: customQuota !== undefined ? parseInt(customQuota) : undefined,
+      customQuota:
+        customQuota !== undefined ? parseInt(customQuota) : undefined,
     });
 
     const quotaStatus = await checkUserQuota(updatedUser);
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
         },
         quotaStatus,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: unknown) {
     console.error("Error updating subscription:", error);
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
         message: "Failed to update subscription",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -90,7 +92,7 @@ export async function GET() {
           },
           createdAt: user.createdAt,
         };
-      })
+      }),
     );
 
     return NextResponse.json(
@@ -99,7 +101,7 @@ export async function GET() {
         count: userList.length,
         users: userList,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: unknown) {
     console.error("Error fetching subscriptions:", error);
@@ -109,7 +111,7 @@ export async function GET() {
         message: "Failed to fetch user subscriptions",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
