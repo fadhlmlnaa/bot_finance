@@ -257,6 +257,53 @@ Digunakan untuk menampilkan performa bisnis, total user aktif, dan volume transa
 
 ---
 
+### D. Monitoring Kondisi Server & Engine (`GET /api/admin/health` & `GET /api/admin/engine-status`)
+
+Digunakan oleh aplikasi Flutter Admin untuk memantau status kesehatan & latensi 3 engine utama (**API Engine**, **PostgreSQL Database**, dan **WhatsApp Bot Worker**):
+
+- **URL**: `GET /api/admin/health` (atau `GET /api/admin/engine-status`)
+- **Response**:
+```json
+{
+  "success": true,
+  "overallStatus": "HEALTHY",
+  "totalResponseTimeMs": 42,
+  "timestamp": "2026-09-28T00:50:00.000Z",
+  "engines": {
+    "api": {
+      "name": "Next.js API Engine",
+      "status": "healthy",
+      "environment": "production",
+      "platform": "Vercel Serverless",
+      "nodeVersion": "v20.x",
+      "timestamp": "2026-09-28T00:50:00.000Z"
+    },
+    "database": {
+      "name": "PostgreSQL Database Engine (Supabase)",
+      "status": "healthy",
+      "latencyMs": 14,
+      "provider": "PostgreSQL Pooler",
+      "metrics": {
+        "usersCount": 25,
+        "transactionsCount": 348,
+        "categoriesCount": 8
+      }
+    },
+    "whatsapp": {
+      "name": "WhatsApp Bot Engine (Baileys Worker)",
+      "status": "healthy",
+      "latencyMs": 28,
+      "connected": true,
+      "botNumber": "6283878198815",
+      "workerUrl": "https://finance-wa-bot-xxx.onrender.com",
+      "uptime": 14205
+    }
+  }
+}
+```
+
+---
+
 ## 5. API Create Transaksi Mobile Apps (`POST /api/transactions`)
 
 Digunakan untuk mencatat pengeluaran/pemasukan dari aplikasi Flutter atau Bot WhatsApp.
@@ -424,3 +471,4 @@ class AdminService {
 | `POST` | `/api/admin/subscription` | **Admin:** Edit kuota maks transaksi, paket, masa aktif, dan status admin user |
 | `GET` | `/api/admin/subscription` | **Admin:** Lihat daftar seluruh user dan penggunaan kuotanya |
 | `GET` | `/api/admin/dashboard` | **Admin:** Metrik analitik & statistik Dashboard Direktur |
+| `GET` | `/api/admin/health` | **Admin:** Monitoring status kesehatan 3 engine (API, Database Supabase, dan Bot WA) |
