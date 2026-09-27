@@ -307,7 +307,7 @@ async function startWhatsAppBot() {
         msg.message.imageMessage?.caption ||
         "";
 
-      const trimmedText = textMessage.trim();
+      let trimmedText = textMessage.trim();
       if (!trimmedText) continue;
 
       // Ignore bot's own automated response messages
@@ -323,16 +323,73 @@ async function startWhatsAppBot() {
         continue;
       }
 
+      const isGroup = senderJid.endsWith("@g.us");
       const botOwnerNumber =
         sock.user?.id?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
-      let phoneNumber = senderJid
-        .split("@")[0]
-        .split(":")[0]
-        .replace(/\D/g, "");
+
+      let phoneNumber = "";
+      if (isGroup) {
+        // Di grup, pengirim transaksi adalah participant yang mengirim pesan
+        const participantJid =
+          msg.key.participant || (msg as unknown as { participant?: string })?.participant || "";
+        phoneNumber = participantJid.split("@")[0].split(":")[0].replace(/\D/g, "");
+      } else {
+        phoneNumber = senderJid
+          .split("@")[0]
+          .split(":")[0]
+          .replace(/\D/g, "");
+      }
 
       if (msg.key.fromMe || senderJid.endsWith("@lid")) {
         if (botOwnerNumber) {
           phoneNumber = botOwnerNumber;
+        }
+      }
+
+      if (!phoneNumber) continue;
+
+      // Filter pesan di Grup WhatsApp: Hanya respon jika Bot di-TAG / MENTION atau direply
+      let processedText = trimmedText;
+      if (isGroup) {
+        const mentionedJids: string[] =
+          msg.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        const quotedParticipant: string =
+          msg.message.extendedTextMessage?.contextInfo?.participant || "";
+
+        const isMentioned = mentionedJids.some(
+          (jid) =>
+            (botPhoneNumber && jid.includes(botPhoneNumber)) ||
+            (botOwnerNumber && jid.includes(botOwnerNumber))
+        );
+        const isQuoted =
+          (botPhoneNumber && quotedParticipant.includes(botPhoneNumber)) ||
+          (botOwnerNumber && quotedParticipant.includes(botOwnerNumber));
+        const hasKeyword = new RegExp(
+          `@${botPhoneNumber}|@pingkas|@bot`,
+          "i"
+        ).test(trimmedText);
+
+        if (!isMentioned && !isQuoted && !hasKeyword) {
+          // Abaikan obrolan umum grup agar bot tidak spam
+          continue;
+        }
+
+        // Bersihkan mention tag @nomor / @bot dari teks transaksi
+        processedText = trimmedText
+          .replace(new RegExp(`@${botPhoneNumber}|@\\d{8,16}|@bot|@pingkas`, "gi"), "")
+          .trim();
+
+        if (!processedText) {
+          // Jika user hanya tag @bot tanpa pesan, kirim panduan singkat
+          await sock.sendMessage(
+            senderJid,
+            {
+              text: `👋 Halo @${phoneNumber}! Tag saya bersama catatan keuangan Anda.\n\n*Contoh Penggunaan di Grup:*\n• \`@PingKas Makan siang 25rb\`\n• \`@PingKas Gaji 5jt\`\n• \`@PingKas rekap\`\n• \`@PingKas bantuan\``,
+              mentions: [`${phoneNumber}@s.whatsapp.net`],
+            },
+            { quoted: msg }
+          );
+          continue;
         }
       }
 
@@ -341,14 +398,17 @@ async function startWhatsAppBot() {
       // Check Whitelist
       if (!isPhoneNumberAllowed(phoneNumber)) {
         console.log(
-          `⛔ Pesan diabaikan: ${phoneNumber} tidak terdaftar di whitelist.`,
+          `⛔ Pesan diabaikan: ${phoneNumber} tidak terdaftar di whitelist.`
         );
         continue;
       }
 
       console.log(
-        `📩 Pesan masuk dari ${senderName} (${phoneNumber}): "${trimmedText}"`,
+        `📩 Pesan masuk dari ${senderName} (${phoneNumber})${isGroup ? " [WA GROUP]" : ""}: "${processedText}"`
       );
+
+      // Pakai processedText (tanpa tag mention @bot) untuk seluruh command & parsing transaksi
+      trimmedText = processedText;
 
       // ==========================================
       // ADMIN COMMANDS (Khusus Owner / Admin)
@@ -840,22 +900,26 @@ async function startWhatsAppBot() {
         const receiptMessage =
           `✅ *TRANSAKSI DICATAT*\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `📅 Waktu    : ${formatDateTime(transaction.date)}\n` +
-          `📂 Kategori : *${category.name}*\n` +
-          `📝 Ket      : ${transaction.description}\n` +
-          `${icon} Tipe     : *${typeLabel}*\n` +
-          `💵 Nominal  : *${formatRupiah(transaction.amount)}*\n` +
+          (isGroup ? `👤 Pengguna  : @${phoneNumber}\n` : "") +
+          `📅 Waktu     : ${formatDateTime(transaction.date)}\n` +
+          `📂 Kategori  : *${category.name}*\n` +
+          `📝 Ket       : ${transaction.description}\n` +
+          `${icon} Tipe      : *${typeLabel}*\n` +
+          `💵 Nominal   : *${formatRupiah(transaction.amount)}*\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `📊 Kuota Bln Ini : *${quotaDisplay}* (${quota.plan})\n` +
+          `📊 Kuota Bln : *${quotaDisplay}* (${quota.plan})\n` +
           `_Ketik *rekap* untuk melihat total saldo._`;
 
         await sock.sendMessage(
           senderJid,
-          { text: receiptMessage },
-          { quoted: msg },
+          {
+            text: receiptMessage,
+            mentions: isGroup ? [`${phoneNumber}@s.whatsapp.net`] : undefined,
+          },
+          { quoted: msg }
         );
         console.log(
-          `✅ Berhasil mencatat ${parsed.type} ${parsed.amount} untuk ${phoneNumber}`,
+          `✅ Berhasil mencatat ${parsed.type} ${parsed.amount} untuk ${phoneNumber}${isGroup ? " [WA GROUP]" : ""}`
         );
       } catch (error) {
         console.error("Gagal mencatat transaksi WA:", error);
