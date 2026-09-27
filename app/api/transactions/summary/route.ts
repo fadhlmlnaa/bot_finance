@@ -7,8 +7,22 @@ export async function GET(request: Request) {
     const phoneNumber = searchParams.get("phoneNumber");
 
     const whereClause: Record<string, unknown> = {};
+    let cleanPhone = "";
+    let userRecord = null;
+
     if (phoneNumber) {
-      whereClause.user = { phoneNumber };
+      cleanPhone = phoneNumber.trim().replace(/\D/g, "");
+      if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
+      whereClause.user = { phoneNumber: cleanPhone };
+
+      userRecord = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phoneNumber: cleanPhone },
+            { phoneNumber: cleanPhone.replace(/^62/, "0") },
+          ],
+        },
+      });
     }
 
     const transactions = await prisma.transaction.findMany({
@@ -20,16 +34,33 @@ export async function GET(request: Request) {
 
     let totalIncome = 0;
     let totalExpense = 0;
+
+    let bankIncome = 0;
+    let bankExpense = 0;
+    let cashIncome = 0;
+    let cashExpense = 0;
+    let walletIncome = 0;
+    let walletExpense = 0;
+
     const categoryBreakdown: Record<
       string,
       { categoryId: string | null; name: string; type: string; total: number; count: number }
     > = {};
 
     for (const trx of transactions) {
-      if (trx.type === "INCOME") {
+      const isIncome = trx.type === "INCOME";
+      const method = trx.paymentMethod || "CASH";
+
+      if (isIncome) {
         totalIncome += trx.amount;
+        if (method === "BANK") bankIncome += trx.amount;
+        else if (method === "E_WALLET") walletIncome += trx.amount;
+        else cashIncome += trx.amount;
       } else {
         totalExpense += trx.amount;
+        if (method === "BANK") bankExpense += trx.amount;
+        else if (method === "E_WALLET") walletExpense += trx.amount;
+        else cashExpense += trx.amount;
       }
 
       const catName = trx.category ? trx.category.name : "Tanpa Kategori";
@@ -57,14 +88,49 @@ export async function GET(request: Request) {
       .filter((c) => c.type === "INCOME")
       .sort((a, b) => b.total - a.total);
 
+    const initialBalance = userRecord?.initialBalance || 0;
+    const initialBankBalance = userRecord?.initialBankBalance || 0;
+    const initialCashBalance = userRecord?.initialCashBalance || 0;
+
+    const netBalance = totalIncome - totalExpense;
+    const finalBalance = initialBalance + netBalance;
+
+    const bankBalance = initialBankBalance + (bankIncome - bankExpense);
+    const cashBalance = initialCashBalance + (cashIncome - cashExpense);
+    const walletBalance = walletIncome - walletExpense;
+
     return NextResponse.json(
       {
         success: true,
         summary: {
+          initialBalance,
+          initialBankBalance,
+          initialCashBalance,
           totalIncome,
           totalExpense,
-          balance: totalIncome - totalExpense,
+          netBalance,
+          finalBalance,
+          balance: finalBalance,
           transactionCount: transactions.length,
+          byPaymentMethod: {
+            bank: {
+              initial: initialBankBalance,
+              income: bankIncome,
+              expense: bankExpense,
+              balance: bankBalance,
+            },
+            cash: {
+              initial: initialCashBalance,
+              income: cashIncome,
+              expense: cashExpense,
+              balance: cashBalance,
+            },
+            eWallet: {
+              income: walletIncome,
+              expense: walletExpense,
+              balance: walletBalance,
+            },
+          },
         },
         expenseByCategory: expenseCategories,
         incomeByCategory: incomeCategories,

@@ -10,6 +10,7 @@ export interface SheetTransactionPayload {
   userName: string;
   description: string;
   type: "PENGELUARAN" | "PEMASUKAN";
+  paymentMethod: string; // "Tunai (Cash)" | "Bank / Transfer" | "E-Wallet"
   category: string;
   amount: number;
   signedAmount: number;
@@ -21,7 +22,7 @@ export interface SheetTransactionPayload {
  * Standard Google Apps Script code template that users can copy into Google Sheets Extensions -> Apps Script
  */
 export const GOOGLE_APPS_SCRIPT_TEMPLATE = `/**
- * PingKas Google Sheets Auto-Sync Webhook Script (Multi-Tab Bulanan Otomatis)
+ * PingKas Google Sheets Auto-Sync Webhook Script (Multi-Tab Bulanan Otomatis + Kolom Pembayaran)
  * 1. Buka Google Spreadsheet
  * 2. Klik Extensions (Ekstensi) > Apps Script
  * 3. Hapus semua kode dan Paste seluruh kode ini
@@ -60,12 +61,13 @@ function doPost(e) {
         "No WhatsApp",
         "Nama",
         "Tipe",
+        "Pembayaran",
         "Kategori",
         "Deskripsi",
         "Nominal (Rp)",
         "Nominal (+/-)"
       ]);
-      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#FF6D00").setFontColor("#FFFFFF");
+      sheet.getRange(1, 1, 1, 11).setFontWeight("bold").setBackground("#FF6D00").setFontColor("#FFFFFF");
       sheet.setFrozenRows(1);
     }
     
@@ -77,15 +79,16 @@ function doPost(e) {
       "'" + data.phoneNumber,
       data.userName || "-",
       data.type,
+      data.paymentMethod || "Tunai (Cash)",
       data.category || "Umum",
       data.description,
       data.amount,
       data.signedAmount
     ]);
     
-    // Format kolom nominal (kolom 9 & 10) ke format Rupiah
+    // Format kolom nominal (kolom 10 & 11) ke format Rupiah
     var lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow, 9, 1, 2).setNumberFormat('"Rp"#,##0');
+    sheet.getRange(lastRow, 10, 1, 2).setNumberFormat('"Rp"#,##0');
     
     return ContentService.createTextOutput(
       JSON.stringify({
@@ -110,6 +113,14 @@ function doGet() {
 }
 `;
 
+export function formatPaymentMethodLabel(method?: string | null): string {
+  if (!method) return "Tunai (Cash)";
+  const upper = method.toUpperCase();
+  if (upper === "BANK" || upper.includes("BANK") || upper.includes("TRANSFER")) return "Bank / Transfer";
+  if (upper === "E_WALLET" || upper === "EWALLET" || upper.includes("WALLET") || upper.includes("QRIS")) return "E-Wallet";
+  return "Tunai (Cash)";
+}
+
 /**
  * Asynchronously syncs a transaction to Google Sheets
  */
@@ -119,6 +130,7 @@ export async function syncTransactionToGoogleSheet(
     amount: number;
     description: string;
     type: "EXPENSE" | "INCOME";
+    paymentMethod?: string | null;
     date: Date;
     category?: { name: string } | null;
   },
@@ -163,6 +175,7 @@ export async function syncTransactionToGoogleSheet(
       userName: user.name || `User ${user.phoneNumber.slice(-4)}`,
       description: transaction.description,
       type: isExpense ? "PENGELUARAN" : "PEMASUKAN",
+      paymentMethod: formatPaymentMethodLabel(transaction.paymentMethod),
       category: transaction.category?.name || "Umum",
       amount: transaction.amount,
       signedAmount: isExpense ? -transaction.amount : transaction.amount,
@@ -205,11 +218,13 @@ export function generateSpreadsheetCsv(
     amount: number;
     description: string;
     type: "EXPENSE" | "INCOME";
+    paymentMethod?: string | null;
     date: Date | string;
     user?: { phoneNumber: string; name?: string | null } | null;
     category?: { name: string } | null;
   }>,
-  title = "Rekap Transaksi PingKas"
+  title = "Rekap Transaksi PingKas",
+  initialBalance = 0
 ): string {
   // UTF-8 BOM so Excel opens accented & Indonesian characters cleanly
   const BOM = "\uFEFF";
@@ -219,12 +234,13 @@ export function generateSpreadsheetCsv(
   rows.push(`sep=,`);
   rows.push(`"${title}"`);
   rows.push(`"Tanggal Unduh","${new Date().toLocaleString("id-ID")}"`);
+  rows.push(`"Saldo Awal",${initialBalance}`);
   rows.push(`"Total Transaksi","${transactions.length}"`);
   rows.push("");
 
   // Table Headers
   rows.push(
-    `"No","ID Transaksi","Tanggal","Jam","No WhatsApp","Nama Pengguna","Jenis","Kategori","Deskripsi","Nominal (Rp)","Saldo (+/-)"`
+    `"No","ID Transaksi","Tanggal","Jam","No WhatsApp","Nama Pengguna","Jenis","Pembayaran","Kategori","Deskripsi","Nominal (Rp)","Saldo (+/-)"`
   );
 
   let totalIncome = 0;
@@ -250,22 +266,26 @@ export function generateSpreadsheetCsv(
     const cleanCat = (t.category?.name || "Umum").replace(/"/g, '""');
     const cleanName = (t.user?.name || "").replace(/"/g, '""');
     const phone = t.user?.phoneNumber || "";
+    const payment = formatPaymentMethodLabel(t.paymentMethod);
 
     const signed = isExpense ? -t.amount : t.amount;
 
     rows.push(
       `"${idx + 1}","${t.id}","${dateStr}","${timeStr}","'${phone}","${cleanName}","${
         isExpense ? "PENGELUARAN" : "PEMASUKAN"
-      }","${cleanCat}","${cleanDesc}",${t.amount},${signed}`
+      }","${payment}","${cleanCat}","${cleanDesc}",${t.amount},${signed}`
     );
   });
 
   const netBalance = totalIncome - totalExpense;
+  const finalBalance = initialBalance + netBalance;
 
   rows.push("");
-  rows.push(`"","","","","","","","","TOTAL PEMASUKAN",${totalIncome},""`);
-  rows.push(`"","","","","","","","","TOTAL PENGELUARAN",${totalExpense},""`);
-  rows.push(`"","","","","","","","","SALDO BERSIH (NET)",${netBalance},""`);
+  rows.push(`"","","","","","","","","","SALDO AWAL",${initialBalance},""`);
+  rows.push(`"","","","","","","","","","TOTAL PEMASUKAN",${totalIncome},""`);
+  rows.push(`"","","","","","","","","","TOTAL PENGELUARAN",${totalExpense},""`);
+  rows.push(`"","","","","","","","","","MUTASI BERSIH (NET)",${netBalance},""`);
+  rows.push(`"","","","","","","","","","SALDO AKHIR",${finalBalance},""`);
 
   return BOM + rows.join("\r\n");
 }

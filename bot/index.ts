@@ -13,8 +13,17 @@ import { prisma } from "../lib/prisma";
 import { inferCategoryName } from "../lib/categorizer";
 import { checkUserQuota, updateUserSubscription } from "../lib/subscription";
 import { SubscriptionPlan } from "@prisma/client";
-import { parseWhatsAppMessage, formatRupiah, formatDateTime } from "./parser";
-import { syncTransactionToGoogleSheet, GOOGLE_APPS_SCRIPT_TEMPLATE } from "../lib/sheets";
+import {
+  parseWhatsAppMessage,
+  formatRupiah,
+  formatDateTime,
+  normalizeAmount,
+} from "./parser";
+import {
+  syncTransactionToGoogleSheet,
+  GOOGLE_APPS_SCRIPT_TEMPLATE,
+  formatPaymentMethodLabel,
+} from "../lib/sheets";
 
 
 const AUTH_DIR = path.join(process.cwd(), "bot_auth");
@@ -599,14 +608,20 @@ async function startWhatsAppBot() {
           `🤖 *BOT PENCATAT KEUANGAN*\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `*Cara Mencatat Pengeluaran:*\n` +
-          `• \`Parkir 2000\`\n` +
-          `• \`Beli sate ayam 50k\`\n` +
-          `• \`18000 Kopi susu\`\n\n` +
+          `• \`Parkir 2000\` (Tunai)\n` +
+          `• \`Beli baju 150rb tf\` / \`bca\` (Bank)\n` +
+          `• \`Kopi 25rb qris\` / \`gopay\` (E-Wallet)\n\n` +
           `*Cara Mencatat Pemasukan (+):*\n` +
-          `• \`+5000000 Gaji bulanan\`\n` +
-          `• \`+50k Bonus project\`\n\n` +
-          `*Perintah Fitur & Membership:*\n` +
-          `• \`rekap\` : Lihat ringkasan saldo & kategori\n` +
+          `• \`+5000000 Gaji bulanan\` (Bank)\n` +
+          `• \`+50k Cash bonus\` (Tunai)\n\n` +
+          `*Atur Saldo Awal:*\n` +
+          `• \`!setsaldo 1000000\` (Total Saldo Awal)\n` +
+          `• \`!setsaldo bank 700000\` (Saldo Awal Bank)\n` +
+          `• \`!setsaldo cash 300000\` (Saldo Awal Tunai)\n\n` +
+          `*Perintah Fitur & Spreadsheet:*\n` +
+          `• \`rekap\` : Lihat saldo awal, mutasi & saldo akhir\n` +
+          `• \`!setsheet\` : Hubungkan Google Sheets (Auto-Sync)\n` +
+          `• \`rekap excel\` : Unduh file CSV rekap per bulan\n` +
           `• \`status\` / \`kuota\` : Cek sisa kuota & masa aktif\n` +
           `• \`paket\` : Info harga langganan PRO/UNLIMITED\n` +
           `• \`bantuan\` : Tampilkan menu ini\n` +
@@ -620,7 +635,113 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 2. Command: Info Paket / Upgrade
+      // 2. Command: Set Saldo Awal (!setsaldo / saldo awal)
+      if (
+        trimmedText.startsWith("!setsaldo") ||
+        /^saldo\s*awal/i.test(trimmedText)
+      ) {
+        const cleanCommand = trimmedText.replace(/^!setsaldo\s*|^saldo\s*awal\s*/i, "").trim();
+
+        if (!cleanCommand) {
+          // Tampilkan status saldo awal saat ini jika tanpa argumen
+          const initTotal = user.initialBalance || 0;
+          const initBank = user.initialBankBalance || 0;
+          const initCash = user.initialCashBalance || 0;
+
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `💰 *PENGATURAN SALDO AWAL*\n` +
+                `━━━━━━━━━━━━━━━━━━━━\n` +
+                `• Saldo Awal Total : *${formatRupiah(initTotal)}*\n` +
+                `  ├ 🏦 Saldo Bank  : *${formatRupiah(initBank)}*\n` +
+                `  └ 💵 Saldo Tunai : *${formatRupiah(initCash)}*\n\n` +
+                `*Cara Mengatur Saldo Awal:*\n` +
+                `• \`!setsaldo 1000000\` (Set Total)\n` +
+                `• \`!setsaldo bank 750k\` (Set Saldo Bank)\n` +
+                `• \`!setsaldo cash 250k\` (Set Saldo Tunai)\n` +
+                `━━━━━━━━━━━━━━━━━━━━`,
+            },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        const parts = cleanCommand.split(/\s+/);
+        let targetType: "TOTAL" | "BANK" | "CASH" = "TOTAL";
+        let amountStr = "";
+
+        if (parts.length >= 2 && /^(bank|tf|rekening|bca|mandiri|bri|bni)/i.test(parts[0])) {
+          targetType = "BANK";
+          amountStr = parts.slice(1).join("");
+        } else if (parts.length >= 2 && /^(cash|tunai|kontan|dompet)/i.test(parts[0])) {
+          targetType = "CASH";
+          amountStr = parts.slice(1).join("");
+        } else {
+          amountStr = cleanCommand;
+        }
+
+        const amount = normalizeAmount(amountStr);
+        if (amount === null || isNaN(amount) || amount < 0) {
+          await sock.sendMessage(
+            senderJid,
+            {
+              text:
+                `⚠️ *Format Nominal Saldo Awal Tidak Valid*\n\n` +
+                `*Contoh Perintah:*\n` +
+                `• \`!setsaldo 1500000\`\n` +
+                `• \`!setsaldo bank 1jt\`\n` +
+                `• \`!setsaldo cash 500k\``,
+            },
+            { quoted: msg }
+          );
+          continue;
+        }
+
+        let updatedData = {};
+        if (targetType === "BANK") {
+          const currentCash = user.initialCashBalance || 0;
+          updatedData = {
+            initialBankBalance: amount,
+            initialBalance: amount + currentCash,
+          };
+        } else if (targetType === "CASH") {
+          const currentBank = user.initialBankBalance || 0;
+          updatedData = {
+            initialCashBalance: amount,
+            initialBalance: currentBank + amount,
+          };
+        } else {
+          updatedData = {
+            initialBalance: amount,
+            initialBankBalance: amount,
+            initialCashBalance: 0,
+          };
+        }
+
+        const updatedUser = await prisma.user.update({
+          where: { id: user.id },
+          data: updatedData,
+        });
+
+        await sock.sendMessage(
+          senderJid,
+          {
+            text:
+              `✅ *SALDO AWAL BERHASIL DISIMPAN!*\n` +
+              `━━━━━━━━━━━━━━━━━━━━\n` +
+              `💰 Saldo Awal Total : *${formatRupiah(updatedUser.initialBalance)}*\n` +
+              `├ 🏦 Saldo Bank     : *${formatRupiah(updatedUser.initialBankBalance)}*\n` +
+              `└ 💵 Saldo Tunai    : *${formatRupiah(updatedUser.initialCashBalance)}*\n\n` +
+              `_Saldo awal ini akan otomatis dihitung dalam rekap keuangan dan ekspor spreadsheet._ 📊`,
+          },
+          { quoted: msg }
+        );
+        continue;
+      }
+
+      // 3. Command: Info Paket / Upgrade
       if (/^(paket|harga|upgrade|langganan|premium)$/i.test(trimmedText)) {
         const pricingText =
           `📦 *PILIHAN PAKET MEMBERSHIP*\n` +
@@ -648,7 +769,7 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 3. Command: Status & Sisa Kuota
+      // 4. Command: Status & Sisa Kuota
       if (/^(status|kuota|membership|akun)$/i.test(trimmedText)) {
         try {
           const quota = await checkUserQuota(user);
@@ -684,7 +805,7 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 4. Command: Auto-sync Google Sheets (!setsheet)
+      // 5. Command: Auto-sync Google Sheets (!setsheet)
       if (
         trimmedText.startsWith("!setsheet") ||
         trimmedText.startsWith("!sheet") ||
@@ -768,6 +889,7 @@ async function startWhatsAppBot() {
               amount: 10000,
               description: "Uji Coba Sinkronisasi WhatsApp",
               type: "EXPENSE",
+              paymentMethod: "CASH",
               date: new Date(),
               category: { name: "Uji Sistem" },
             },
@@ -845,6 +967,7 @@ async function startWhatsAppBot() {
             amount: 0,
             description: "PingKas Auto-Sync Terhubung",
             type: "INCOME",
+            paymentMethod: "BANK",
             date: new Date(),
             category: { name: "Aktivasi" },
           },
@@ -866,7 +989,7 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 5. Command: Download Rekap Spreadsheet (rekap excel / export)
+      // 6. Command: Download Rekap Spreadsheet (rekap excel / export)
       if (
         /^(rekap\s*excel|rekap\s*spreadsheet|export|unduh\s*excel|download\s*rekap)$/i.test(
           trimmedText,
@@ -892,7 +1015,7 @@ async function startWhatsAppBot() {
         continue;
       }
 
-      // 6. Command: Rekapitulasi / Summary
+      // 7. Command: Rekapitulasi / Summary
       if (/^(rekap|laporan|summary|saldo)$/i.test(trimmedText)) {
         try {
           const transactions = await prisma.transaction.findMany({
@@ -900,18 +1023,37 @@ async function startWhatsAppBot() {
             include: { category: true },
           });
 
+          const initialTotal = user.initialBalance || 0;
+          const initialBank = user.initialBankBalance || 0;
+          const initialCash = user.initialCashBalance || 0;
+
           let totalIncome = 0;
           let totalExpense = 0;
+          let incomeBank = 0;
+          let expenseBank = 0;
+          let incomeCash = 0;
+          let expenseCash = 0;
+          let incomeEWallet = 0;
+          let expenseEWallet = 0;
+
           const expenseCategoryMap: Record<
             string,
             { total: number; count: number }
           > = {};
 
           for (const t of transactions) {
+            const method = t.paymentMethod || "CASH";
             if (t.type === "INCOME") {
               totalIncome += t.amount;
+              if (method === "BANK") incomeBank += t.amount;
+              else if (method === "CASH") incomeCash += t.amount;
+              else if (method === "E_WALLET") incomeEWallet += t.amount;
             } else {
               totalExpense += t.amount;
+              if (method === "BANK") expenseBank += t.amount;
+              else if (method === "CASH") expenseCash += t.amount;
+              else if (method === "E_WALLET") expenseEWallet += t.amount;
+
               const catName = t.category?.name || "Lainnya";
               if (!expenseCategoryMap[catName]) {
                 expenseCategoryMap[catName] = { total: 0, count: 0 };
@@ -921,7 +1063,11 @@ async function startWhatsAppBot() {
             }
           }
 
-          const balance = totalIncome - totalExpense;
+          const netChange = totalIncome - totalExpense;
+          const finalBalance = initialTotal + netChange;
+          const currentBank = initialBank + incomeBank - expenseBank;
+          const currentCash = initialCash + incomeCash - expenseCash;
+
           const sortedCategories = Object.entries(expenseCategoryMap).sort(
             (a, b) => b[1].total - a[1].total,
           );
@@ -942,12 +1088,18 @@ async function startWhatsAppBot() {
             `📊 *REKAP KEUANGAN ANDA*\n` +
             `━━━━━━━━━━━━━━━━━━━━\n` +
             `👤 Pengguna : *${user.name || senderName}*\n` +
-            `💵 Pemasukan : *${formatRupiah(totalIncome)}*\n` +
-            `💸 Pengeluaran : *${formatRupiah(totalExpense)}*\n` +
-            `💳 Sisa Saldo : *${formatRupiah(balance)}*\n` +
-            `📝 Total Transaksi : ${transactions.length}\n` +
-            `━━━━━━━━━━━━━━━━━━━━` +
-            (categoryText ? `${categoryText}\n━━━━━━━━━━━━━━━━━━━━` : "");
+            `💰 Saldo Awal : *${formatRupiah(initialTotal)}*\n` +
+            `💵 Total Pemasukan : *${formatRupiah(totalIncome)}*\n` +
+            `💸 Total Pengeluaran : *${formatRupiah(totalExpense)}*\n` +
+            `📈 Mutasi Bersih : *${formatRupiah(netChange)}*\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `💳 *SALDO AKHIR : ${formatRupiah(finalBalance)}*\n` +
+            `  ├ 🏦 Bank / Rekening : *${formatRupiah(currentBank)}*\n` +
+            `  ├ 💵 Tunai (Cash)   : *${formatRupiah(currentCash)}*` +
+            (incomeEWallet > 0 || expenseEWallet > 0 ? `\n  └ 📱 E-Wallet        : *${formatRupiah(incomeEWallet - expenseEWallet)}*` : "") +
+            `\n━━━━━━━━━━━━━━━━━━━━\n` +
+            `📝 Total Transaksi : ${transactions.length}` +
+            (categoryText ? `\n━━━━━━━━━━━━━━━━━━━━${categoryText}` : "");
 
           await sock.sendMessage(
             senderJid,
@@ -966,7 +1118,7 @@ async function startWhatsAppBot() {
       }
 
       // ==========================================
-      // 5. TRANSACTION RECORDING WITH QUOTA CHECK
+      // 8. TRANSACTION RECORDING WITH QUOTA CHECK
       // ==========================================
       const parsed = parseWhatsAppMessage(trimmedText);
       if (!parsed) {
@@ -1015,12 +1167,13 @@ async function startWhatsAppBot() {
           });
         }
 
-        // Save transaction
+        // Save transaction with paymentMethod
         const transaction = await prisma.transaction.create({
           data: {
             amount: parsed.amount,
             description: parsed.description,
             type: parsed.type,
+            paymentMethod: parsed.paymentMethod,
             userId: user.id,
             categoryId: category.id,
           },
@@ -1033,6 +1186,7 @@ async function startWhatsAppBot() {
             amount: transaction.amount,
             description: transaction.description,
             type: transaction.type,
+            paymentMethod: transaction.paymentMethod,
             date: transaction.date,
             category: { name: category.name },
           },
@@ -1043,6 +1197,7 @@ async function startWhatsAppBot() {
         const isIncome = parsed.type === "INCOME";
         const icon = isIncome ? "💰" : "💸";
         const typeLabel = isIncome ? "Pemasukan (+)" : "Pengeluaran (-)";
+        const paymentLabel = formatPaymentMethodLabel(transaction.paymentMethod);
         const newUsed = quota.used + 1;
         const quotaDisplay = quota.isUnlimited
           ? "∞"
@@ -1056,6 +1211,7 @@ async function startWhatsAppBot() {
           `📂 Kategori  : *${category.name}*\n` +
           `📝 Ket       : ${transaction.description}\n` +
           `${icon} Tipe      : *${typeLabel}*\n` +
+          `💳 Metode    : *${paymentLabel}*\n` +
           `💵 Nominal   : *${formatRupiah(transaction.amount)}*\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `📊 Kuota Bln : *${quotaDisplay}* (${quota.plan})\n` +
@@ -1070,7 +1226,7 @@ async function startWhatsAppBot() {
           { quoted: msg }
         );
         console.log(
-          `✅ Berhasil mencatat ${parsed.type} ${parsed.amount} untuk ${phoneNumber}${isGroup ? " [WA GROUP]" : ""}`
+          `✅ Berhasil mencatat ${parsed.type} [${parsed.paymentMethod}] ${parsed.amount} untuk ${phoneNumber}${isGroup ? " [WA GROUP]" : ""}`
         );
       } catch (error) {
         console.error("Gagal mencatat transaksi WA:", error);
@@ -1088,3 +1244,4 @@ async function startWhatsAppBot() {
 startWhatsAppBot().catch((err) => {
   console.error("Fatal bot error:", err);
 });
+

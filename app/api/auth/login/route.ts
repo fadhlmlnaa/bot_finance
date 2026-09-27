@@ -102,6 +102,11 @@ export async function POST(request: Request) {
             plan: user.plan,
             monthlyQuota: user.monthlyQuota,
             subscriptionEnd: user.subscriptionEnd,
+            initialBalance: user.initialBalance,
+            initialBankBalance: user.initialBankBalance,
+            initialCashBalance: user.initialCashBalance,
+            sheetWebhookUrl: user.sheetWebhookUrl,
+            autoSyncSheet: user.autoSyncSheet,
             createdAt: user.createdAt,
           },
           quota: {

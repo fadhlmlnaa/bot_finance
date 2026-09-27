@@ -24,7 +24,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { inferCategoryName } from "@/lib/categorizer";
-import { GOOGLE_APPS_SCRIPT_TEMPLATE } from "@/lib/sheets";
+import { inferPaymentMethod } from "@/bot/parser";
+import { GOOGLE_APPS_SCRIPT_TEMPLATE, formatPaymentMethodLabel } from "@/lib/sheets";
 
 interface UserProfile {
   id: string;
@@ -34,6 +35,9 @@ interface UserProfile {
   plan: string;
   monthlyQuota: number;
   subscriptionEnd: string | null;
+  initialBalance?: number;
+  initialBankBalance?: number;
+  initialCashBalance?: number;
 }
 
 interface QuotaInfo {
@@ -50,6 +54,7 @@ interface TransactionItem {
   amount: number;
   description: string;
   type: "EXPENSE" | "INCOME";
+  paymentMethod?: "CASH" | "BANK" | "E_WALLET";
   date: string;
   category?: {
     id: string;
@@ -70,6 +75,7 @@ export default function UserPortalPage() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [filterType, setFilterType] = useState<"ALL" | "EXPENSE" | "INCOME">("ALL");
+  const [filterPayment, setFilterPayment] = useState<"ALL" | "CASH" | "BANK" | "E_WALLET">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
   // New Transaction Form State
@@ -77,9 +83,19 @@ export default function UserPortalPage() {
   const [trxAmount, setTrxAmount] = useState("");
   const [trxDescription, setTrxDescription] = useState("");
   const [trxType, setTrxType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
+  const [trxPaymentMethod, setTrxPaymentMethod] = useState<"CASH" | "BANK" | "E_WALLET">("CASH");
   const [trxCategory, setTrxCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(
+    null
+  );
+
+  // Saldo Awal State
+  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [initialBankInput, setInitialBankInput] = useState("");
+  const [initialCashInput, setInitialCashInput] = useState("");
+  const [isSavingBalance, setIsSavingBalance] = useState(false);
+  const [balanceFeedback, setBalanceFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
 
@@ -150,11 +166,79 @@ export default function UserPortalPage() {
 
   const handleDescriptionChange = (text: string) => {
     setTrxDescription(text);
-    if (text.trim() && !trxCategory) {
-      const suggested = inferCategoryName(text, trxType);
-      if (suggested && suggested !== "Pengeluaran Lainnya" && suggested !== "Pemasukan Lainnya") {
-        setTrxCategory(suggested);
+    if (text.trim()) {
+      if (!trxCategory) {
+        const suggested = inferCategoryName(text, trxType);
+        if (suggested && suggested !== "Pengeluaran Lainnya" && suggested !== "Pemasukan Lainnya") {
+          setTrxCategory(suggested);
+        }
       }
+      const inferredMethod = inferPaymentMethod(text, trxType);
+      setTrxPaymentMethod(inferredMethod);
+    }
+  };
+
+  const handleOpenBalanceModal = () => {
+    if (!currentUser) return;
+    setInitialBankInput((currentUser.initialBankBalance || 0).toString());
+    setInitialCashInput((currentUser.initialCashBalance || 0).toString());
+    setBalanceFeedback(null);
+    setIsBalanceModalOpen(true);
+  };
+
+  const handleSaveBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const bank = parseFloat(initialBankInput.replace(/\D/g, "")) || 0;
+    const cash = parseFloat(initialCashInput.replace(/\D/g, "")) || 0;
+
+    setIsSavingBalance(true);
+    setBalanceFeedback(null);
+
+    try {
+      const res = await fetch("/api/user/initial-balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber: currentUser.phoneNumber,
+          initialBankBalance: bank,
+          initialCashBalance: cash,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menyimpan saldo awal");
+      }
+
+      setBalanceFeedback({
+        type: "success",
+        text: "✅ Saldo awal berhasil diperbarui!",
+      });
+
+      // Update current user locally
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              initialBalance: json.data.initialBalance,
+              initialBankBalance: json.data.initialBankBalance,
+              initialCashBalance: json.data.initialCashBalance,
+            }
+          : null
+      );
+
+      setTimeout(() => {
+        setIsBalanceModalOpen(false);
+      }, 1000);
+    } catch (err: unknown) {
+      setBalanceFeedback({
+        type: "error",
+        text: err instanceof Error ? err.message : "Terjadi kesalahan",
+      });
+    } finally {
+      setIsSavingBalance(false);
     }
   };
 
@@ -319,7 +403,6 @@ export default function UserPortalPage() {
     setTransactions([]);
   };
 
-
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -350,6 +433,7 @@ export default function UserPortalPage() {
           amount: amountVal,
           description: trxDescription.trim(),
           type: trxType,
+          paymentMethod: trxPaymentMethod,
           categoryName: trxCategory.trim() || undefined,
         }),
       });
@@ -361,15 +445,16 @@ export default function UserPortalPage() {
 
       setFeedbackMsg({
         type: "success",
-        text: `✅ Berhasil mencatat ${trxType === "INCOME" ? "Pemasukan" : "Pengeluaran"} Rp ${amountVal.toLocaleString(
-          "id-ID"
-        )}!`,
+        text: `✅ Berhasil mencatat ${trxType === "INCOME" ? "Pemasukan" : "Pengeluaran"} (${formatPaymentMethodLabel(
+          trxPaymentMethod
+        )}) Rp ${amountVal.toLocaleString("id-ID")}!`,
       });
 
       // Reset form
       setTrxAmount("");
       setTrxDescription("");
       setTrxCategory("");
+      setTrxPaymentMethod("CASH");
       setIsModalOpen(false);
 
       // Refresh data & quota
@@ -385,6 +470,10 @@ export default function UserPortalPage() {
   };
 
   // Calculate totals
+  const initialTotal = currentUser?.initialBalance || 0;
+  const initialBank = currentUser?.initialBankBalance || 0;
+  const initialCash = currentUser?.initialCashBalance || 0;
+
   const totalIncome = transactions
     .filter((t) => t.type === "INCOME")
     .reduce((acc, curr) => acc + curr.amount, 0);
@@ -394,14 +483,36 @@ export default function UserPortalPage() {
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const netBalance = totalIncome - totalExpense;
+  const finalBalance = initialTotal + netBalance;
+
+  // Breakdown Bank & Cash
+  const incomeBank = transactions
+    .filter((t) => t.type === "INCOME" && t.paymentMethod === "BANK")
+    .reduce((acc, curr) => acc + curr.amount, 0);
+  const expenseBank = transactions
+    .filter((t) => t.type === "EXPENSE" && t.paymentMethod === "BANK")
+    .reduce((acc, curr) => acc + curr.amount, 0);
+  const currentBank = initialBank + incomeBank - expenseBank;
+
+  const incomeCash = transactions
+    .filter((t) => t.type === "INCOME" && (t.paymentMethod === "CASH" || !t.paymentMethod))
+    .reduce((acc, curr) => acc + curr.amount, 0);
+  const expenseCash = transactions
+    .filter((t) => t.type === "EXPENSE" && (t.paymentMethod === "CASH" || !t.paymentMethod))
+    .reduce((acc, curr) => acc + curr.amount, 0);
+  const currentCash = initialCash + incomeCash - expenseCash;
 
   // Filtered transactions
   const filteredTransactions = transactions.filter((t) => {
     const matchType = filterType === "ALL" || t.type === filterType;
+    const matchPayment =
+      filterPayment === "ALL" ||
+      t.paymentMethod === filterPayment ||
+      (!t.paymentMethod && filterPayment === "CASH");
     const matchSearch =
       t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.category?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
-    return matchType && matchSearch;
+    return matchType && matchPayment && matchSearch;
   });
 
   return (
@@ -515,6 +626,15 @@ export default function UserPortalPage() {
 
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
+                  onClick={handleOpenBalanceModal}
+                  title="Atur Saldo Awal (Bank & Kas Tunai)"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl transition-all shadow-xs"
+                >
+                  <Wallet className="w-4 h-4 text-pingkas-orange" />
+                  <span>Saldo Awal</span>
+                </button>
+
+                <button
                   onClick={handleExportCsv}
                   title="Unduh Rekap Spreadsheet (CSV / Excel)"
                   className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl transition-all shadow-xs"
@@ -563,31 +683,99 @@ export default function UserPortalPage() {
             </div>
 
             {/* Quota Usage Bar & Overview */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Saldo Akhir & Saldo Awal Card */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    Saldo Akhir
+                  </span>
+                  <button
+                    onClick={handleOpenBalanceModal}
+                    className="text-[11px] font-bold text-pingkas-orange hover:underline flex items-center gap-1"
+                  >
+                    Edit Saldo Awal
+                  </button>
+                </div>
+                <div>
+                  <div
+                    className={`text-2xl font-black ${
+                      finalBalance >= 0 ? "text-slate-900" : "text-rose-600"
+                    }`}
+                  >
+                    Rp {finalBalance.toLocaleString("id-ID")}
+                  </div>
+                  <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-medium">
+                    <span>🏦 Bank: <b>Rp {currentBank.toLocaleString("id-ID")}</b></span>
+                    <span>💵 Tunai: <b>Rp {currentCash.toLocaleString("id-ID")}</b></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Pemasukan Card */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider">
+                    Total Pemasukan
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <ArrowDownLeft className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-emerald-600">
+                    +Rp {totalIncome.toLocaleString("id-ID")}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    Dari {transactions.filter((t) => t.type === "INCOME").length} transaksi masuk
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Pengeluaran Card */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-extrabold text-pingkas-orange-dark uppercase tracking-wider">
+                    Total Pengeluaran
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-pingkas-orange flex items-center justify-center">
+                    <ArrowUpRight className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-pingkas-orange">
+                    -Rp {totalExpense.toLocaleString("id-ID")}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    Dari {transactions.filter((t) => t.type === "EXPENSE").length} transaksi keluar
+                  </p>
+                </div>
+              </div>
+
               {/* Quota Card */}
               <div className="bg-linear-to-br from-[#FFFDF9] to-[#FFF7ED] p-6 rounded-3xl border-2 border-orange-200/80 shadow-sm flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-extrabold text-pingkas-orange-dark uppercase tracking-wider">
-                      Kuota Transaksi Bulan Ini
+                      Kuota Transaksi
                     </span>
-                    <span className="text-xs font-bold text-slate-500">
+                    <span className="text-[11px] font-bold text-slate-500">
                       Paket {currentUser.plan}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-3xl font-black text-slate-900">
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-2xl font-black text-slate-900">
                       {quota?.used ?? 0}
                     </span>
-                    <span className="text-sm font-semibold text-slate-500">
+                    <span className="text-xs font-semibold text-slate-500">
                       / {quota?.isUnlimited ? "∞ Unlimited" : `${quota?.maxQuota ?? 20} Trx`}
                     </span>
                   </div>
 
                   {/* Progress Bar */}
                   {!quota?.isUnlimited && (
-                    <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden mb-2">
+                    <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden mb-1.5">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           (quota?.used || 0) >= (quota?.maxQuota || 20)
@@ -606,85 +794,10 @@ export default function UserPortalPage() {
                     </div>
                   )}
 
-                  <p className="text-xs text-slate-600 font-medium">
+                  <p className="text-[11px] text-slate-600 font-medium">
                     {quota?.isUnlimited
                       ? "Bebas mencatat transaksi tanpa batasan kuota!"
                       : `Sisa kuota: ${quota?.remaining ?? 0} transaksi lagi`}
-                  </p>
-                </div>
-
-                {currentUser.plan === "FREE" && (
-                  <a
-                    href="https://wa.me/6281234567890?text=Halo%20Admin,%20saya%20mau%20upgrade%20ke%20paket%20PRO"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 block text-center text-xs font-extrabold text-pingkas-orange bg-white border border-orange-300 py-2 rounded-xl hover:bg-orange-50 transition-colors"
-                  >
-                    ⭐ Upgrade ke Paket PRO (200 Trx)
-                  </a>
-                )}
-              </div>
-
-              {/* Saldo Bersih Card */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                    Saldo Bersih (Net)
-                  </span>
-                  <div className="w-9 h-9 rounded-xl bg-teal-50 text-pingkas-teal flex items-center justify-center">
-                    <Wallet className="w-5 h-5" />
-                  </div>
-                </div>
-                <div>
-                  <div
-                    className={`text-2xl font-black ${
-                      netBalance >= 0 ? "text-pingkas-teal" : "text-rose-600"
-                    }`}
-                  >
-                    Rp {netBalance.toLocaleString("id-ID")}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">
-                    Pemasukan dikurangi Pengeluaran
-                  </p>
-                </div>
-              </div>
-
-              {/* Total Pemasukan Card */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider">
-                    Total Pemasukan
-                  </span>
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <ArrowDownLeft className="w-5 h-5" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-2xl font-black text-emerald-600">
-                    +Rp {totalIncome.toLocaleString("id-ID")}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">
-                    Dari {transactions.filter((t) => t.type === "INCOME").length} transaksi masuk
-                  </p>
-                </div>
-              </div>
-
-              {/* Total Pengeluaran Card */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-extrabold text-pingkas-orange-dark uppercase tracking-wider">
-                    Total Pengeluaran
-                  </span>
-                  <div className="w-9 h-9 rounded-xl bg-orange-50 text-pingkas-orange flex items-center justify-center">
-                    <ArrowUpRight className="w-5 h-5" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-2xl font-black text-pingkas-orange">
-                    -Rp {totalExpense.toLocaleString("id-ID")}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">
-                    Dari {transactions.filter((t) => t.type === "EXPENSE").length} transaksi keluar
                   </p>
                 </div>
               </div>
@@ -692,7 +805,7 @@ export default function UserPortalPage() {
 
             {/* Transactions Section */}
             <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-black text-slate-900">Riwayat & Pemantauan Transaksi</h3>
                   <p className="text-xs text-slate-500">
@@ -712,6 +825,18 @@ export default function UserPortalPage() {
                       className="pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-pingkas-orange"
                     />
                   </div>
+
+                  {/* Filter Payment Method */}
+                  <select
+                    value={filterPayment}
+                    onChange={(e) => setFilterPayment(e.target.value as "ALL" | "CASH" | "BANK" | "E_WALLET")}
+                    className="px-2.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-hidden focus:border-pingkas-orange"
+                  >
+                    <option value="ALL">Semua Pembayaran</option>
+                    <option value="CASH">💵 Tunai (Cash)</option>
+                    <option value="BANK">🏦 Bank / Transfer</option>
+                    <option value="E_WALLET">📱 E-Wallet</option>
+                  </select>
 
                   <div className="flex items-center bg-slate-100 p-1 rounded-xl">
                     <button
@@ -772,6 +897,14 @@ export default function UserPortalPage() {
                       minute: "2-digit",
                     });
 
+                    const method = trx.paymentMethod || "CASH";
+                    const methodLabel =
+                      method === "BANK"
+                        ? "🏦 Bank"
+                        : method === "E_WALLET"
+                        ? "📱 E-Wallet"
+                        : "💵 Tunai";
+
                     return (
                       <div
                         key={trx.id}
@@ -795,11 +928,15 @@ export default function UserPortalPage() {
                             <div className="font-bold text-sm text-slate-900">
                               {trx.description}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                            <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-slate-500">
                               <span>{formattedDate}</span>
                               <span>•</span>
                               <span className="font-semibold text-pingkas-teal bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
                                 {trx.category?.name || "Umum"}
+                              </span>
+                              <span>•</span>
+                              <span className="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                {methodLabel}
                               </span>
                             </div>
                           </div>
@@ -817,6 +954,104 @@ export default function UserPortalPage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Saldo Awal */}
+        {isBalanceModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 text-pingkas-orange flex items-center justify-center">
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">Atur Saldo Awal</h3>
+                    <p className="text-xs text-slate-500">Saldo sebelum transaksi dicatat</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsBalanceModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {balanceFeedback && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-semibold mb-4 ${
+                    balanceFeedback.type === "error"
+                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  }`}
+                >
+                  {balanceFeedback.text}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveBalance} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    🏦 Saldo Awal Bank / Rekening (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={initialBankInput}
+                    onChange={(e) => setInitialBankInput(e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    💵 Saldo Awal Kas Tunai (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={initialCashInput}
+                    onChange={(e) => setInitialCashInput(e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </div>
+
+                <div className="bg-orange-50/70 p-3.5 rounded-xl border border-orange-200/60 text-xs flex justify-between items-center font-bold text-slate-800">
+                  <span>Total Saldo Awal:</span>
+                  <span className="text-pingkas-orange text-sm font-black">
+                    Rp {(
+                      (parseFloat(initialBankInput.replace(/\D/g, "")) || 0) +
+                      (parseFloat(initialCashInput.replace(/\D/g, "")) || 0)
+                    ).toLocaleString("id-ID")}
+                  </span>
+                </div>
+
+                <div className="pt-3 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsBalanceModalOpen(false)}
+                    className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingBalance}
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-linear-to-r from-pingkas-orange-light via-pingkas-orange to-pingkas-orange-dark rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 transition-all flex items-center gap-2"
+                  >
+                    {isSavingBalance ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <span>Simpan Saldo Awal</span>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -884,6 +1119,48 @@ export default function UserPortalPage() {
                   </div>
                 </div>
 
+                {/* Payment Method Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Metode Pembayaran
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setTrxPaymentMethod("CASH")}
+                      className={`py-2 text-xs font-bold rounded-lg transition-colors ${
+                        trxPaymentMethod === "CASH"
+                          ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      💵 Tunai
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrxPaymentMethod("BANK")}
+                      className={`py-2 text-xs font-bold rounded-lg transition-colors ${
+                        trxPaymentMethod === "BANK"
+                          ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      🏦 Bank / TF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrxPaymentMethod("E_WALLET")}
+                      className={`py-2 text-xs font-bold rounded-lg transition-colors ${
+                        trxPaymentMethod === "E_WALLET"
+                          ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      📱 E-Wallet
+                    </button>
+                  </div>
+                </div>
+
                 {/* Amount */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -900,7 +1177,7 @@ export default function UserPortalPage() {
                   />
                   {/* Quick Chips */}
                   <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-                    {[10000, 20000, 50000, 100000].map((quick) => (
+                    {[10000, 20000, 50000, 100000, 500000].map((quick) => (
                       <button
                         type="button"
                         key={quick}
@@ -921,7 +1198,7 @@ export default function UserPortalPage() {
                   <input
                     type="text"
                     required
-                    placeholder="Contoh: Makan Siang Nasi Padang, Bensin, Gaji"
+                    placeholder="Contoh: Makan Siang Nasi Padang, Transfer Sewa, Gaji"
                     value={trxDescription}
                     onChange={(e) => handleDescriptionChange(e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:border-pingkas-orange focus:ring-2 focus:ring-orange-500/20"
@@ -1131,3 +1408,4 @@ export default function UserPortalPage() {
     </div>
   );
 }
+

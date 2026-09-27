@@ -3,12 +3,24 @@ import { prisma } from "@/lib/prisma";
 import { inferCategoryName } from "@/lib/categorizer";
 import { checkUserQuota } from "@/lib/subscription";
 import { syncTransactionToGoogleSheet } from "@/lib/sheets";
+import { inferPaymentMethod } from "@/bot/parser";
 
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { phoneNumber, userId, description, amount, type, categoryId, category, categoryName, date } = body;
+    const {
+      phoneNumber,
+      userId,
+      description,
+      amount,
+      type,
+      paymentMethod,
+      categoryId,
+      category,
+      categoryName,
+      date,
+    } = body;
 
     // Validation
     if ((!phoneNumber && !userId) || !description || amount === undefined || !type) {
@@ -40,6 +52,17 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    // Resolve Payment Method
+    const rawMethod = paymentMethod?.toString().toUpperCase();
+    let resolvedPaymentMethod: "CASH" | "BANK" | "E_WALLET" = "CASH";
+    if (rawMethod === "BANK" || rawMethod === "CASH" || rawMethod === "E_WALLET") {
+      resolvedPaymentMethod = rawMethod;
+    } else if (rawMethod === "EWALLET") {
+      resolvedPaymentMethod = "E_WALLET";
+    } else {
+      resolvedPaymentMethod = inferPaymentMethod(String(description), type);
     }
 
     // Normalize phone number if provided
@@ -125,6 +148,7 @@ export async function POST(request: Request) {
         amount: parsedAmount,
         description: String(description).trim(),
         type,
+        paymentMethod: resolvedPaymentMethod,
         userId: user.id,
         categoryId: resolvedCategoryId,
         ...(date ? { date: new Date(date) } : {}),

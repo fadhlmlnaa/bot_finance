@@ -14,11 +14,24 @@ export async function GET(request: Request) {
 
     let userTitle = "Rekap Transaksi PingKas";
 
+    let initialBalance = 0;
     if (phoneNumber) {
       const cleanPhone = phoneNumber.trim().replace(/\D/g, "");
       const finalPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
       whereClause.user = { phoneNumber: finalPhone };
       userTitle = `Rekap Transaksi PingKas (+${finalPhone})`;
+
+      const userRecord = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phoneNumber: finalPhone },
+            { phoneNumber: finalPhone.replace(/^62/, "0") },
+          ],
+        },
+      });
+      if (userRecord) {
+        initialBalance = userRecord.initialBalance || 0;
+      }
     }
 
     if (type && (type === "INCOME" || type === "EXPENSE")) {
@@ -60,7 +73,7 @@ export async function GET(request: Request) {
       },
     });
 
-    const csvContent = generateSpreadsheetCsv(transactions, userTitle);
+    const csvContent = generateSpreadsheetCsv(transactions, userTitle, initialBalance);
 
     const filename = `rekap-pingkas-${phoneNumber || "global"}-${Date.now()}.csv`;
 

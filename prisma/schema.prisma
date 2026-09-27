@@ -13,6 +13,12 @@ enum TransactionType {
   EXPENSE
 }
 
+enum PaymentMethod {
+  CASH
+  BANK
+  E_WALLET
+}
+
 enum SubscriptionPlan {
   FREE
   PRO
@@ -20,23 +26,28 @@ enum SubscriptionPlan {
 }
 
 model User {
-  id              String           @id @default(uuid())
-  phoneNumber     String           @unique
-  name            String?
-  createdAt       DateTime         @default(now())
+  id                 String           @id @default(uuid())
+  phoneNumber        String           @unique
+  name               String?
+  createdAt          DateTime         @default(now())
 
   // Membership & Quota
-  plan            SubscriptionPlan @default(FREE)
-  subscriptionEnd DateTime?
-  monthlyQuota    Int              @default(20) // Maksimal transaksi per bulan (dapat diubah admin)
-  isAdmin         Boolean          @default(false)
+  plan               SubscriptionPlan @default(FREE)
+  subscriptionEnd    DateTime?
+  monthlyQuota       Int              @default(20) // Maksimal transaksi per bulan (dapat diubah admin)
+  isAdmin            Boolean          @default(false)
+
+  // Saldo Awal
+  initialBalance     Float            @default(0)
+  initialBankBalance Float            @default(0)
+  initialCashBalance Float            @default(0)
 
   // Google Sheets Auto-Sync Settings
-  sheetWebhookUrl String?          // Google Apps Script Webhook URL
-  autoSyncSheet   Boolean          @default(false)
+  sheetWebhookUrl    String?          // Google Apps Script Webhook URL
+  autoSyncSheet      Boolean          @default(false)
 
-  categories      Category[]
-  transactions    Transaction[]
+  categories         Category[]
+  transactions       Transaction[]
 }
 
 model Category {
@@ -49,13 +60,14 @@ model Category {
 }
 
 model Transaction {
-  id          String          @id @default(uuid())
-  amount      Float
-  description String
-  type        TransactionType
-  date        DateTime        @default(now())
-  userId      String
-  user        User            @relation(fields: [userId], references: [id])
-  categoryId  String?
-  category    Category?       @relation(fields: [categoryId], references: [id])
+  id            String          @id @default(uuid())
+  amount        Float
+  description   String
+  type          TransactionType
+  paymentMethod PaymentMethod   @default(CASH)
+  date          DateTime        @default(now())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  categoryId    String?
+  category      Category?       @relation(fields: [categoryId], references: [id])
 }
