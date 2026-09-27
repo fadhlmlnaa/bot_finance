@@ -6,14 +6,14 @@ import { checkUserQuota } from "@/lib/subscription";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { phoneNumber, description, amount, type, categoryId, category, categoryName } = body;
+    const { phoneNumber, userId, description, amount, type, categoryId, category, categoryName, date } = body;
 
     // Validation
-    if (!phoneNumber || !description || amount === undefined || !type) {
+    if ((!phoneNumber && !userId) || !description || amount === undefined || !type) {
       return NextResponse.json(
         {
           success: false,
-          message: "Missing required fields: phoneNumber, description, amount, and type are required.",
+          message: "Missing required fields: phoneNumber (or userId), description, amount, and type are required.",
         },
         { status: 400 }
       );
@@ -40,15 +40,35 @@ export async function POST(request: Request) {
       );
     }
 
-    // Upsert User based on phoneNumber
-    const user = await prisma.user.upsert({
-      where: { phoneNumber: String(phoneNumber).trim() },
-      update: {},
-      create: {
-        phoneNumber: String(phoneNumber).trim(),
-        name: `User ${String(phoneNumber).trim().slice(-4)}`,
-      },
-    });
+    // Normalize phone number if provided
+    let cleanPhone = "";
+    if (phoneNumber) {
+      cleanPhone = String(phoneNumber).trim().replace(/\D/g, "");
+      if (cleanPhone.startsWith("0")) cleanPhone = "62" + cleanPhone.slice(1);
+    }
+
+    // Lookup or Upsert User
+    let user = null;
+    if (userId) {
+      user = await prisma.user.findUnique({ where: { id: userId } });
+    }
+    if (!user && cleanPhone) {
+      user = await prisma.user.upsert({
+        where: { phoneNumber: cleanPhone },
+        update: {},
+        create: {
+          phoneNumber: cleanPhone,
+          name: `User ${cleanPhone.slice(-4)}`,
+        },
+      });
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: "User not found" },
+        { status: 404 }
+      );
+    }
 
     // Check Membership & Monthly Quota
     const quota = await checkUserQuota(user);
@@ -105,6 +125,7 @@ export async function POST(request: Request) {
         type,
         userId: user.id,
         categoryId: resolvedCategoryId,
+        ...(date ? { date: new Date(date) } : {}),
       },
       include: {
         user: {
