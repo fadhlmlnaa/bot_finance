@@ -268,3 +268,95 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get("id");
+    let phoneNumber = searchParams.get("phoneNumber");
+
+    // Also support JSON body if sent
+    if (!id) {
+      try {
+        const body = await request.json();
+        id = body.id || id;
+        phoneNumber = body.phoneNumber || phoneNumber;
+      } catch {
+        // Ignored
+      }
+    }
+
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Transaction ID is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Find transaction
+    const transaction = await prisma.transaction.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        category: true,
+      },
+    });
+
+    if (!transaction) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Transaction not found.",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Verify ownership if phoneNumber provided
+    if (phoneNumber) {
+      const cleanPhone = phoneNumber.trim().replace(/\D/g, "");
+      const userPhone = transaction.user.phoneNumber.replace(/\D/g, "");
+      const isMatch =
+        userPhone === cleanPhone ||
+        userPhone === "62" + cleanPhone.replace(/^0/, "") ||
+        cleanPhone === "62" + userPhone.replace(/^0/, "");
+
+      if (!isMatch) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Unauthorized to delete this transaction.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    await prisma.transaction.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Transaction deleted successfully.",
+        data: transaction,
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("Error deleting transaction:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to delete transaction",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+

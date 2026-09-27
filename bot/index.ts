@@ -327,6 +327,8 @@ async function startWhatsAppBot() {
         trimmedText.startsWith("👑 *STATUS MEMBERSHIP*") ||
         trimmedText.startsWith("📦 *PAKET MEMBERSHIP*") ||
         trimmedText.startsWith("⛔ *KUOTA TRANSAKSI HABIS*") ||
+        trimmedText.startsWith("🗑️ *TRANSAKSI BERHASIL DIHAPUS*") ||
+        trimmedText.startsWith("📋 *DAFTAR TRANSAKSI TERAKHIR*") ||
         trimmedText.includes("Belum ada transaksi yang tercatat")
       ) {
         continue;
@@ -614,6 +616,10 @@ async function startWhatsAppBot() {
           `*Cara Mencatat Pemasukan (+):*\n` +
           `• \`+5000000 Gaji bulanan\` (Bank)\n` +
           `• \`+50k Cash bonus\` (Tunai)\n\n` +
+          `*Hapus / Batalkan Transaksi:*\n` +
+          `• \`!hapus terakhir\` / \`batal\` / \`undo\` (Hapus transaksi terakhir)\n` +
+          `• \`!hapus 1\` / \`!hapus 2\` (Hapus nomor dari riwayat)\n` +
+          `• \`!riwayat\` (Lihat 5 transaksi terakhir & ID-nya)\n\n` +
           `*Atur Saldo Awal:*\n` +
           `• \`!setsaldo 1000000\` (Total Saldo Awal)\n` +
           `• \`!setsaldo bank 700000\` (Saldo Awal Bank)\n` +
@@ -632,6 +638,162 @@ async function startWhatsAppBot() {
           { text: helpMessage },
           { quoted: msg },
         );
+        continue;
+      }
+
+      // 1.1 Command: Riwayat Transaksi Terakhir (!riwayat / !list)
+      if (/^(!riwayat|!list|riwayat|daftar\s*transaksi)$/i.test(trimmedText)) {
+        try {
+          const recentTransactions = await prisma.transaction.findMany({
+            where: { userId: user.id },
+            orderBy: { date: "desc" },
+            take: 5,
+            include: { category: true },
+          });
+
+          if (recentTransactions.length === 0) {
+            await sock.sendMessage(
+              senderJid,
+              { text: "ℹ️ Anda belum memiliki riwayat transaksi." },
+              { quoted: msg }
+            );
+            continue;
+          }
+
+          let listText = `📋 *DAFTAR TRANSAKSI TERAKHIR*\n━━━━━━━━━━━━━━━━━━━━\n`;
+          recentTransactions.forEach((trx, index) => {
+            const isIncome = trx.type === "INCOME";
+            const icon = isIncome ? "💰" : "💸";
+            const paymentLabel = formatPaymentMethodLabel(trx.paymentMethod);
+            const shortId = trx.id.slice(0, 8);
+            listText += `*[${index + 1}]* ${icon} *${trx.description}*\n`;
+            listText += `    ${formatRupiah(trx.amount)} (${paymentLabel}) • ${formatDateTime(trx.date)}\n`;
+            listText += `    _ID: \`${shortId}\`_\n\n`;
+          });
+
+          listText += `━━━━━━━━━━━━━━━━━━━━\n`;
+          listText += `*Cara Hapus Transaksi:*\n`;
+          listText += `• \`!hapus 1\` (Hapus nomor 1)\n`;
+          listText += `• \`!hapus terakhir\` / \`batal\` (Hapus paling baru)\n`;
+          listText += `• \`!hapus <ID>\` (Hapus berdasarkan ID)`;
+
+          await sock.sendMessage(
+            senderJid,
+            { text: listText },
+            { quoted: msg }
+          );
+        } catch (err) {
+          console.error("Gagal mengambil riwayat transaksi:", err);
+          await sock.sendMessage(
+            senderJid,
+            { text: "❌ Terjadi kendala saat mengambil riwayat transaksi." },
+            { quoted: msg }
+          );
+        }
+        continue;
+      }
+
+      // 1.2 Command: Hapus / Batalkan Transaksi (!hapus / !batal / batal / undo / !del)
+      if (
+        trimmedText.startsWith("!hapus") ||
+        trimmedText.startsWith("!del") ||
+        trimmedText.startsWith("!delete") ||
+        /^(!batal|batal|undo|hapus\s*terakhir)$/i.test(trimmedText)
+      ) {
+        try {
+          const rawArg = trimmedText
+            .replace(/^(!hapus|!del|!delete|!batal|batal|undo|hapus)\s*/i, "")
+            .trim();
+
+          let targetTransaction = null;
+
+          if (
+            !rawArg ||
+            rawArg.toLowerCase() === "terakhir" ||
+            rawArg.toLowerCase() === "last" ||
+            /^(!batal|batal|undo)$/i.test(trimmedText)
+          ) {
+            // Hapus transaksi terakhir milik user
+            targetTransaction = await prisma.transaction.findFirst({
+              where: { userId: user.id },
+              orderBy: { date: "desc" },
+              include: { category: true },
+            });
+          } else if (/^\d+$/.test(rawArg)) {
+            // Hapus berdasarkan nomor urut riwayat (misal !hapus 1)
+            const index = parseInt(rawArg, 10);
+            if (index >= 1 && index <= 20) {
+              const recent = await prisma.transaction.findMany({
+                where: { userId: user.id },
+                orderBy: { date: "desc" },
+                take: index,
+                include: { category: true },
+              });
+              if (recent.length >= index) {
+                targetTransaction = recent[index - 1];
+              }
+            }
+          } else {
+            // Hapus berdasarkan ID atau partial prefix ID
+            targetTransaction = await prisma.transaction.findFirst({
+              where: {
+                userId: user.id,
+                id: { startsWith: rawArg },
+              },
+              include: { category: true },
+            });
+          }
+
+          if (!targetTransaction) {
+            await sock.sendMessage(
+              senderJid,
+              {
+                text:
+                  `⚠️ *Transaksi Tidak Ditemukan*\n\n` +
+                  `Pastikan ID atau nomor transaksi valid.\n` +
+                  `Ketik \`!riwayat\` untuk melihat daftar transaksi Anda beserta ID-nya.`,
+              },
+              { quoted: msg }
+            );
+            continue;
+          }
+
+          // Hapus transaksi dari database
+          await prisma.transaction.delete({
+            where: { id: targetTransaction.id },
+          });
+
+          const isIncome = targetTransaction.type === "INCOME";
+          const icon = isIncome ? "💰" : "💸";
+          const typeLabel = isIncome ? "Pemasukan (+)" : "Pengeluaran (-)";
+          const paymentLabel = formatPaymentMethodLabel(targetTransaction.paymentMethod);
+
+          const deleteNotice =
+            `🗑️ *TRANSAKSI BERHASIL DIHAPUS*\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `📝 Ket       : *${targetTransaction.description}*\n` +
+            `📂 Kategori  : ${targetTransaction.category?.name || "Umum"}\n` +
+            `${icon} Tipe      : ${typeLabel}\n` +
+            `💳 Metode    : ${paymentLabel}\n` +
+            `💵 Nominal   : *${formatRupiah(targetTransaction.amount)}*\n` +
+            `📅 Waktu     : ${formatDateTime(targetTransaction.date)}\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `💡 _Saldo & mutasi keuangan Anda telah otomatis disesuaikan kembali._`;
+
+          await sock.sendMessage(
+            senderJid,
+            { text: deleteNotice },
+            { quoted: msg }
+          );
+          console.log(`🗑️ Transaksi ${targetTransaction.id} (${targetTransaction.description}) berhasil dihapus oleh ${phoneNumber}`);
+        } catch (err) {
+          console.error("Gagal menghapus transaksi via WA:", err);
+          await sock.sendMessage(
+            senderJid,
+            { text: "❌ Maaf, gagal menghapus transaksi. Coba lagi nanti." },
+            { quoted: msg }
+          );
+        }
         continue;
       }
 
@@ -1217,7 +1379,7 @@ async function startWhatsAppBot() {
           `💵 Nominal   : *${formatRupiah(transaction.amount)}*\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `📊 Kuota Bln : *${quotaDisplay}* (${quota.plan})\n` +
-          `_Ketik *rekap* untuk melihat total saldo._`;
+          `_Ketik *rekap* untuk saldo, atau *batal* untuk menghapus._`;
 
         await sock.sendMessage(
           senderJid,

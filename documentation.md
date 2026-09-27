@@ -246,6 +246,24 @@ Pengguna dapat mengatur saldo awal bank dan tunai baik lewat WhatsApp bot (`!set
 }
 ```
 
+### C. Hapus Transaksi (`DELETE /api/transactions`)
+- **URL**: `DELETE /api/transactions?id=<TRANSACTION_ID>&phoneNumber=085280357817`
+  *(atau via JSON Body `{ "id": "...", "phoneNumber": "..." }`)*
+- **Response Success (`200 OK`)**:
+```json
+{
+  "success": true,
+  "message": "Transaction deleted successfully",
+  "data": {
+    "id": "3a7f8b9c-...",
+    "amount": 45000,
+    "description": "Beli makan siang nasi kapau",
+    "type": "EXPENSE",
+    "paymentMethod": "CASH"
+  }
+}
+```
+
 ---
 
 ## 6. Auto-Sync Multi-Tab Google Spreadsheet & Ekspor CSV
@@ -357,7 +375,15 @@ function doPost(e) {
 | `!setsaldo bank <nominal>` | Atur saldo awal rekening bank | `!setsaldo bank 750k` |
 | `!setsaldo cash <nominal>` | Atur saldo awal kas tunai | `!setsaldo cash 250k` |
 
-### C. Perintah Fitur & Spreadsheet
+### C. Perintah Hapus / Batalkan Transaksi via WhatsApp
+| Perintah WhatsApp | Fungsi | Contoh |
+|---|---|---|
+| `!hapus terakhir` / `batal` / `undo` | Hapus / batalkan transaksi paling terakhir yang dicatat | `batal` atau `!hapus terakhir` |
+| `!hapus <nomor>` | Hapus transaksi nomor urut tertentu dari riwayat | `!hapus 1` |
+| `!hapus <id>` | Hapus transaksi berdasarkan ID unik / prefix ID | `!hapus 3a7f8b9c` |
+| `!riwayat` / `!list` | Tampilkan 5 transaksi terakhir beserta nomor urut dan ID-nya | `!riwayat` |
+
+### D. Perintah Fitur & Spreadsheet
 | Perintah WhatsApp | Fungsi | Contoh |
 |---|---|---|
 | `rekap` / `laporan` | Ringkasan saldo awal, mutasi, saldo akhir, rincian bank/cash & kategori | `rekap` |
@@ -522,6 +548,7 @@ class InitialBalanceService {
 | `POST` | `/api/user/initial-balance` | Simpan / update saldo awal user (Total, Bank, Cash) |
 | `POST` | `/api/transactions` | Catat transaksi baru dengan `paymentMethod` (`CASH`, `BANK`, `E_WALLET`) |
 | `GET` | `/api/transactions` | Ambil riwayat transaksi user (`?phoneNumber=...`) |
+| `DELETE` | `/api/transactions` | Hapus transaksi milik user (`?id=...&phoneNumber=...` atau body JSON) |
 | `GET` | `/api/transactions/summary` | Rekapitulasi keuangan, saldo awal, saldo akhir & per kategori |
 | `GET` | `/api/transactions/export` | Unduh file `.csv` / Excel berformat UTF-8 BOM lengkap dengan kolom Pembayaran |
 | `GET` | `/api/user/sheet-settings` | Ambil Webhook URL & status auto-sync Google Sheets user |

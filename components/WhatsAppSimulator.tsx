@@ -108,6 +108,33 @@ export function WhatsAppSimulator() {
         return;
       }
 
+      if (lower === "batal" || lower === "undo" || lower.startsWith("!hapus") || lower.startsWith("!del")) {
+        setQuotaUsed((prev) => Math.max(0, prev - 1));
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${prev.length + 1}`,
+            sender: "bot",
+            text: `🗑️ *TRANSAKSI BERHASIL DIHAPUS*\n━━━━━━━━━━━━━━━━━━━━\n📝 Transaksi terakhir telah dibatalkan.\n💡 Saldo & kuota Anda telah disesuaikan kembali.`,
+            time: botTime,
+          },
+        ]);
+        return;
+      }
+
+      if (lower === "!riwayat" || lower === "riwayat" || lower === "!list") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${prev.length + 1}`,
+            sender: "bot",
+            text: `📋 *DAFTAR TRANSAKSI TERAKHIR*\n━━━━━━━━━━━━━━━━━━━━\n*[1]* 💸 Makan siang ayam geprek\n    Rp 25.000 (Tunai) • Baru saja\n    _ID: \`a7b3c9f1\`_\n\n*[2]* 💰 Gaji Bulanan\n    Rp 5.000.000 (Bank) • Kemarin\n    _ID: \`8d2e1c4a\`_\n━━━━━━━━━━━━━━━━━━━━\n*Cara Hapus Transaksi:*\n• Ketik \`!hapus 1\` atau \`batal\``,
+            time: botTime,
+          },
+        ]);
+        return;
+      }
+
 
       // Parse amount
       let amount = 0;
