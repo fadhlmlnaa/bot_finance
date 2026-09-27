@@ -27,11 +27,22 @@ export async function GET(request: Request) {
       },
     });
 
+    // Deduplicate categories by lowercase name & type
+    const seen = new Set<string>();
+    const uniqueCategories = [];
+    for (const cat of categories) {
+      const key = `${cat.name.trim().toLowerCase()}_${cat.type}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueCategories.push(cat);
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
-        count: categories.length,
-        data: categories,
+        count: uniqueCategories.length,
+        data: uniqueCategories,
       },
       { status: 200 }
     );
@@ -63,21 +74,46 @@ export async function POST(request: Request) {
       );
     }
 
-    let userId: string | null = null;
-    if (phoneNumber) {
-      const user = await prisma.user.upsert({
-        where: { phoneNumber: String(phoneNumber).trim() },
-        update: {},
-        create: {
-          phoneNumber: String(phoneNumber).trim(),
+    const cleanName = String(name).trim();
+
+    // Check if category already exists anywhere with same name & type
+    let category = await prisma.category.findFirst({
+      where: {
+        name: { equals: cleanName, mode: "insensitive" },
+        type,
+      },
+    });
+
+    if (category) {
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Category already exists",
+          data: category,
         },
-      });
-      userId = user.id;
+        { status: 200 }
+      );
     }
 
-    const category = await prisma.category.create({
+    let userId: string | null = null;
+    if (phoneNumber) {
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phoneNumber: String(phoneNumber).trim() },
+            { phoneNumber: "62" + String(phoneNumber).trim().replace(/^0/, "") },
+            { phoneNumber: "0" + String(phoneNumber).trim().replace(/^62/, "") },
+          ],
+        },
+      });
+      if (user) {
+        userId = user.id;
+      }
+    }
+
+    category = await prisma.category.create({
       data: {
-        name: String(name).trim(),
+        name: cleanName,
         type,
         userId,
       },
@@ -103,3 +139,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

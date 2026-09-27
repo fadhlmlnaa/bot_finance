@@ -118,22 +118,24 @@ export async function POST(request: Request) {
         inferCategoryName(String(description).trim(), type);
 
       if (targetCategoryName) {
-        // Find existing category for user or global
+        // Find existing category matching name & type anywhere in DB
         let matchedCategory = await prisma.category.findFirst({
           where: {
             name: { equals: targetCategoryName, mode: "insensitive" },
             type: type,
-            OR: [{ userId: user.id }, { userId: null }],
           },
+          orderBy: [
+            { userId: "asc" },
+          ],
         });
 
-        // If not found, create new category for this user
+        // If not found, create new shared category
         if (!matchedCategory) {
           matchedCategory = await prisma.category.create({
             data: {
               name: targetCategoryName,
               type: type,
-              userId: user.id,
+              userId: null,
             },
           });
         }

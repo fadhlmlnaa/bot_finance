@@ -1146,15 +1146,17 @@ async function startWhatsAppBot() {
           continue;
         }
 
-        // Determine category
+        // Determine category (reuse existing category or create shared global category)
         const categoryName = inferCategoryName(parsed.description, parsed.type);
 
         let category = await prisma.category.findFirst({
           where: {
             name: { equals: categoryName, mode: "insensitive" },
             type: parsed.type,
-            OR: [{ userId: user.id }, { userId: null }],
           },
+          orderBy: [
+            { userId: "asc" },
+          ],
         });
 
         if (!category) {
@@ -1162,7 +1164,7 @@ async function startWhatsAppBot() {
             data: {
               name: categoryName,
               type: parsed.type,
-              userId: user.id,
+              userId: null,
             },
           });
         }
