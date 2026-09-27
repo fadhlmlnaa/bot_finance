@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
-    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "@whiskeysockets/baileys": "^6.7.24",
     "next": "16.3.6",
     "pino": "^10.3.1",
     "prisma": "^6.4.1",
