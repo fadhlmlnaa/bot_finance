@@ -64,6 +64,13 @@ function doPost(e) {
     }
     
     // 2. Aksi CATAT TRANSAKSI BARU (CREATE)
+    // Validasi data transaksi agar tidak menambahkan baris kosong jika payload tidak lengkap
+    if (typeof data.amount === "undefined" && !data.description) {
+      return ContentService.createTextOutput(
+        JSON.stringify({ success: false, message: "Payload transaksi tidak valid (amount & description kosong), skip append." })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // Tentukan nama tab sheet per bulan (contoh: "September 2026")
     var sheetName = data.sheetName || (function() {
       var months = [
