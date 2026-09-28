@@ -22,6 +22,7 @@ import {
 } from "./parser";
 import {
   syncTransactionToGoogleSheet,
+  deleteTransactionFromGoogleSheet,
   GOOGLE_APPS_SCRIPT_TEMPLATE,
   formatPaymentMethodLabel,
 } from "../lib/sheets";
@@ -829,6 +830,9 @@ async function startWhatsAppBot() {
           await prisma.transaction.delete({
             where: { id: targetTransaction.id },
           });
+
+          // Otomatis hapus baris transaksi di Google Sheets jika auto-sync aktif
+          void deleteTransactionFromGoogleSheet(targetTransaction, user);
 
           const isIncome = targetTransaction.type === "INCOME";
           const icon = isIncome ? "💰" : "💸";

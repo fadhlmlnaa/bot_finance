@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { inferCategoryName } from "@/lib/categorizer";
 import { checkUserQuota } from "@/lib/subscription";
-import { syncTransactionToGoogleSheet } from "@/lib/sheets";
+import { syncTransactionToGoogleSheet, deleteTransactionFromGoogleSheet } from "@/lib/sheets";
 import { inferPaymentMethod } from "@/bot/parser";
 
 
@@ -338,6 +338,9 @@ export async function DELETE(request: Request) {
     await prisma.transaction.delete({
       where: { id },
     });
+
+    // Otomatis hapus baris transaksi di Google Sheets jika terhubung
+    void deleteTransactionFromGoogleSheet(transaction, transaction.user);
 
     return NextResponse.json(
       {

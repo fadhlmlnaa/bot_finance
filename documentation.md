@@ -273,14 +273,42 @@ Salin kode berikut ke Google Spreadsheet di menu **Ekstensi (Extensions)** > **A
 
 ```javascript
 /**
- * PINGKAS - Google Apps Script Webhook Listener (Multi-Tab Bulanan + Kolom Pembayaran)
+ * PINGKAS - Google Apps Script Webhook Listener (Multi-Tab Bulanan + Auto-Delete/Batal)
  */
 function doPost(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var data = JSON.parse(e.postData.contents);
 
-    // 1. Tentukan nama tab sheet per bulan (contoh: "September 2026")
+    // 1. Aksi HAPUS TRANSAKSI (DELETE / BATAL)
+    if (data.action === "DELETE" && data.id) {
+      var sheets = ss.getSheets();
+      var deleted = false;
+      for (var s = 0; s < sheets.length; s++) {
+        var currentSheet = sheets[s];
+        var lastR = currentSheet.getLastRow();
+        if (lastR > 1) {
+          var idValues = currentSheet.getRange(2, 1, lastR - 1, 1).getValues();
+          for (var r = idValues.length - 1; r >= 0; r--) {
+            if (String(idValues[r][0]).trim() === String(data.id).trim()) {
+              currentSheet.deleteRow(r + 2);
+              deleted = true;
+              break;
+            }
+          }
+        }
+        if (deleted) break;
+      }
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: true,
+          message: deleted ? "Baris transaksi berhasil dihapus dari Google Sheets" : "ID tidak ditemukan",
+          deleted: deleted,
+        })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. Aksi CATAT TRANSAKSI BARU (CREATE)
     var sheetName =
       data.sheetName ||
       (function () {
@@ -292,13 +320,11 @@ function doPost(e) {
         return months[now.getMonth()] + " " + now.getFullYear();
       })();
 
-    // 2. Cari tab sheet bulan terkait, buat baru jika belum ada
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
     }
 
-    // 3. Inisialisasi Header Oranye PingKas jika tab masih kosong
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
         "ID Transaksi",
@@ -321,7 +347,6 @@ function doPost(e) {
       sheet.setFrozenRows(1);
     }
 
-    // 4. Catat Baris Transaksi Baru
     sheet.appendRow([
       data.id || "TRX-" + new Date().getTime(),
       data.date,
@@ -336,7 +361,6 @@ function doPost(e) {
       data.signedAmount,
     ]);
 
-    // 5. Format kolom nominal (kolom 10 & 11) ke format Rupiah
     var lastRow = sheet.getLastRow();
     sheet.getRange(lastRow, 10, 1, 2).setNumberFormat('"Rp"#,##0');
 
@@ -346,11 +370,11 @@ function doPost(e) {
         message: "Transaksi berhasil dicatat ke tab " + sheetName,
         sheet: sheetName,
         row: lastRow,
-      }),
+      })
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     return ContentService.createTextOutput(
-      JSON.stringify({ success: false, error: error.toString() }),
+      JSON.stringify({ success: false, error: error.toString() })
     ).setMimeType(ContentService.MimeType.JSON);
   }
 }

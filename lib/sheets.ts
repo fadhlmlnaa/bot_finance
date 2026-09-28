@@ -22,13 +22,12 @@ export interface SheetTransactionPayload {
  * Standard Google Apps Script code template that users can copy into Google Sheets Extensions -> Apps Script
  */
 export const GOOGLE_APPS_SCRIPT_TEMPLATE = `/**
- * PingKas Google Sheets Auto-Sync Webhook Script (Multi-Tab Bulanan Otomatis + Kolom Pembayaran)
+ * PingKas Google Sheets Auto-Sync Webhook Script (Multi-Tab Bulanan + Auto-Delete/Batal)
  * 1. Buka Google Spreadsheet
  * 2. Klik Extensions (Ekstensi) > Apps Script
  * 3. Hapus semua kode dan Paste seluruh kode ini
- * 4. Klik Deploy > New Deployment > Select Type: Web App
+ * 4. Klik Deploy > Manage deployments > Edit > New version > Deploy
  * 5. Set 'Execute as': Me, dan 'Who has access': Anyone
- * 6. Klik Deploy, Authorize Access, dan salin Web App URL ke PingKas!
  */
 
 function doPost(e) {
@@ -36,6 +35,35 @@ function doPost(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var data = JSON.parse(e.postData.contents);
     
+    // 1. Aksi HAPUS TRANSAKSI (DELETE / BATAL TRANSAKSI)
+    if (data.action === "DELETE" && data.id) {
+      var sheets = ss.getSheets();
+      var deleted = false;
+      for (var s = 0; s < sheets.length; s++) {
+        var currentSheet = sheets[s];
+        var lastR = currentSheet.getLastRow();
+        if (lastR > 1) {
+          var idValues = currentSheet.getRange(2, 1, lastR - 1, 1).getValues();
+          for (var r = idValues.length - 1; r >= 0; r--) {
+            if (String(idValues[r][0]).trim() === String(data.id).trim()) {
+              currentSheet.deleteRow(r + 2);
+              deleted = true;
+              break;
+            }
+          }
+        }
+        if (deleted) break;
+      }
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: true,
+          message: deleted ? "Baris transaksi berhasil dihapus dari Google Sheets" : "ID transaksi tidak ditemukan di sheets",
+          deleted: deleted
+        })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 2. Aksi CATAT TRANSAKSI BARU (CREATE)
     // Tentukan nama tab sheet per bulan (contoh: "September 2026")
     var sheetName = data.sheetName || (function() {
       var months = [
@@ -208,6 +236,62 @@ export async function syncTransactionToGoogleSheet(
     return {
       synced: false,
       error: error instanceof Error ? error.message : "Sync timeout / failed",
+    };
+  }
+}
+
+/**
+ * Asynchronously deletes a transaction row from Google Sheets
+ */
+export async function deleteTransactionFromGoogleSheet(
+  transaction: {
+    id: string;
+    date?: Date;
+  },
+  user: {
+    phoneNumber: string;
+    name?: string | null;
+    sheetWebhookUrl?: string | null;
+    autoSyncSheet?: boolean;
+  }
+) {
+  const targetWebhookUrl =
+    user.sheetWebhookUrl ||
+    (user.autoSyncSheet ? process.env.GOOGLE_SHEET_WEBHOOK_URL : null);
+
+  if (!targetWebhookUrl) {
+    return { synced: false, reason: "No webhook URL configured" };
+  }
+
+  try {
+    const payload = {
+      action: "DELETE",
+      id: transaction.id,
+      phoneNumber: user.phoneNumber,
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+
+    const res = await fetch(targetWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      return { synced: true };
+    } else {
+      console.warn("Google Sheet delete failed with status:", res.status);
+      return { synced: false, error: `HTTP ${res.status}` };
+    }
+  } catch (error) {
+    console.error("Google Sheet delete webhook error:", error);
+    return {
+      synced: false,
+      error: error instanceof Error ? error.message : "Delete sync failed",
     };
   }
 }
