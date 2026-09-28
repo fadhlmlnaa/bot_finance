@@ -3,6 +3,7 @@ import makeWASocket, {
   useMultiFileAuthState as getMultiFileAuthState,
   fetchLatestBaileysVersion,
   WASocket,
+  makeCacheableSignalKeyStore,
 } from "@whiskeysockets/baileys";
 import http from "http";
 import pino from "pino";
@@ -227,12 +228,19 @@ async function startWhatsAppBot() {
     `🤖 Menggunakan Baileys v${version.join(".")} (Latest: ${isLatest})`,
   );
 
+  const botLogger = pino({ level: "silent" });
+
   const sock = makeWASocket({
     version,
-    logger: pino({ level: "silent" }),
+    logger: botLogger,
     printQRInTerminal: false,
-    auth: state,
-    browser: ["Bot Keuangan", "Chrome", "1.0.0"],
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, botLogger),
+    },
+    browser: ["PingKas Bot", "Chrome", "1.0.0"],
+    syncFullHistory: false,
+    markOnlineOnConnect: true,
   });
 
   currentSock = sock;
