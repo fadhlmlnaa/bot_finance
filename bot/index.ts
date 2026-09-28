@@ -335,48 +335,75 @@ async function startWhatsAppBot() {
       }
 
       const isGroup = senderJid.endsWith("@g.us");
-      const botOwnerNumber =
-        sock.user?.id?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
+      const botRawId = sock.user?.id || "";
+      const botPhoneNumber = botRawId.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
+      const botLid = sock.user?.lid?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
+      const botOwnerNumber = botPhoneNumber;
 
       let phoneNumber = "";
       if (isGroup) {
         // Di grup, pengirim transaksi adalah participant yang mengirim pesan
-        const participantJid =
-          msg.key.participant || (msg as unknown as { participant?: string })?.participant || "";
-        phoneNumber = participantJid.split("@")[0].split(":")[0].replace(/\D/g, "");
-      } else {
-        phoneNumber = senderJid
-          .split("@")[0]
-          .split(":")[0]
-          .replace(/\D/g, "");
-      }
+        let rawParticipant =
+          (msg.key as unknown as { participantPn?: string })?.participantPn ||
+          msg.key.participant ||
+          (msg as unknown as { participant?: string })?.participant ||
+          "";
 
-      if (msg.key.fromMe || senderJid.endsWith("@lid")) {
-        if (botOwnerNumber) {
-          phoneNumber = botOwnerNumber;
+        if (msg.key.fromMe) {
+          phoneNumber = botPhoneNumber || botOwnerNumber;
+        } else {
+          if (rawParticipant.endsWith("@lid")) {
+            try {
+              const mapped = await (sock as unknown as { signalRepository?: { lidToJidMapping?: (lid: string) => Promise<string> } })
+                ?.signalRepository?.lidToJidMapping?.(rawParticipant);
+              if (mapped) rawParticipant = mapped;
+            } catch {
+              // ignore
+            }
+          }
+          phoneNumber = rawParticipant.split("@")[0].split(":")[0].replace(/\D/g, "");
+        }
+      } else {
+        if (msg.key.fromMe || senderJid.endsWith("@lid")) {
+          phoneNumber = botPhoneNumber || botOwnerNumber;
+        } else {
+          phoneNumber = senderJid
+            .split("@")[0]
+            .split(":")[0]
+            .replace(/\D/g, "");
         }
       }
 
       if (!phoneNumber) continue;
 
-      // Filter pesan di Grup WhatsApp: Hanya respon jika Bot di-TAG / MENTION atau direply
+      // Filter pesan di Grup WhatsApp: Respon jika Bot di-TAG, direply, atau disebut @PingKas / PingKas / @bot
       let processedText = trimmedText;
       if (isGroup) {
-        const mentionedJids: string[] =
-          msg.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
-        const quotedParticipant: string =
-          msg.message.extendedTextMessage?.contextInfo?.participant || "";
+        const contextInfo = msg.message.extendedTextMessage?.contextInfo;
+        const mentionedJids: string[] = contextInfo?.mentionedJid || [];
+        const quotedParticipant: string = contextInfo?.participant || "";
 
-        const isMentioned = mentionedJids.some(
-          (jid) =>
-            (botPhoneNumber && jid.includes(botPhoneNumber)) ||
-            (botOwnerNumber && jid.includes(botOwnerNumber))
-        );
+        const botShortNum = botPhoneNumber.replace(/^62/, "");
+
+        // 1. Cek apakah bot di-mention via WhatsApp tag popup (@ kontak)
+        const isMentioned = mentionedJids.some((jid) => {
+          const cleanJid = jid.split("@")[0].split(":")[0].replace(/\D/g, "");
+          return (
+            (botPhoneNumber && (jid.includes(botPhoneNumber) || cleanJid === botPhoneNumber)) ||
+            (botLid && (jid.includes(botLid) || cleanJid === botLid)) ||
+            (botRawId && jid.includes(botRawId.split("@")[0]))
+          );
+        });
+
+        // 2. Cek apakah user mereply pesan dari bot
         const isQuoted =
           (botPhoneNumber && quotedParticipant.includes(botPhoneNumber)) ||
-          (botOwnerNumber && quotedParticipant.includes(botOwnerNumber));
+          (botLid && quotedParticipant.includes(botLid)) ||
+          (botRawId && quotedParticipant.includes(botRawId.split("@")[0]));
+
+        // 3. Cek apakah teks mengandung @PingKas, PingKas, @bot, atau nomor HP bot
         const hasKeyword = new RegExp(
-          `@${botPhoneNumber}|@pingkas|@bot`,
+          `@?pingkas|@?bot|@${botPhoneNumber}|@0${botShortNum}|@${botShortNum}`,
           "i"
         ).test(trimmedText);
 
@@ -385,9 +412,16 @@ async function startWhatsAppBot() {
           continue;
         }
 
-        // Bersihkan mention tag @nomor / @bot dari teks transaksi
+        // Bersihkan mention tag @nomor / @bot / PingKas dari teks transaksi
         processedText = trimmedText
-          .replace(new RegExp(`@${botPhoneNumber}|@\\d{8,16}|@bot|@pingkas`, "gi"), "")
+          .replace(
+            new RegExp(
+              `@${botPhoneNumber}|@0${botShortNum}|@${botShortNum}|@\\d{8,16}|@pingkas|@bot|^pingkas\\b|^bot\\b`,
+              "gi"
+            ),
+            ""
+          )
+          .replace(/^[:,\s-]+/, "")
           .trim();
 
         if (!processedText) {
@@ -395,7 +429,7 @@ async function startWhatsAppBot() {
           await sock.sendMessage(
             senderJid,
             {
-              text: `👋 Halo @${phoneNumber}! Tag saya bersama catatan keuangan Anda.\n\n*Contoh Penggunaan di Grup:*\n• \`@PingKas Makan siang 25rb\`\n• \`@PingKas Gaji 5jt\`\n• \`@PingKas rekap\`\n• \`@PingKas bantuan\``,
+              text: `👋 Halo @${phoneNumber}! Tag saya bersama catatan keuangan Anda.\n\n*Contoh Penggunaan di Grup:*\n• \`@PingKas Bakso 15k\`\n• \`@PingKas Gaji 5jt\`\n• \`@PingKas rekap\`\n• \`@PingKas bantuan\``,
               mentions: [`${phoneNumber}@s.whatsapp.net`],
             },
             { quoted: msg }
@@ -554,25 +588,42 @@ async function startWhatsAppBot() {
       // ==========================================
       // CEK REGISTRASI USER (Hanya User Terdaftar)
       // ==========================================
+      const cleanDigits = phoneNumber.replace(/\D/g, "");
+      const normalizedWith62 = cleanDigits.startsWith("0")
+        ? "62" + cleanDigits.slice(1)
+        : cleanDigits.startsWith("62")
+        ? cleanDigits
+        : "62" + cleanDigits;
+      const normalizedWith0 = cleanDigits.startsWith("62")
+        ? "0" + cleanDigits.slice(2)
+        : cleanDigits.startsWith("0")
+        ? cleanDigits
+        : "0" + cleanDigits;
+
       const user = await prisma.user.findFirst({
         where: {
           OR: [
             { phoneNumber: phoneNumber },
-            { phoneNumber: phoneNumber.replace(/^62/, "0") },
-            { phoneNumber: phoneNumber.replace(/^0/, "62") },
+            { phoneNumber: cleanDigits },
+            { phoneNumber: normalizedWith62 },
+            { phoneNumber: normalizedWith0 },
+            { phoneNumber: `+${normalizedWith62}` },
+            { phoneNumber: `+${cleanDigits}` },
           ],
         },
       });
 
       if (!user) {
+        const displayPhone = cleanDigits.startsWith("62") ? "0" + cleanDigits.slice(2) : cleanDigits;
         if (isGroup) {
           await sock.sendMessage(
             senderJid,
             {
               text:
                 `⚠️ *AKUN BELUM TERDAFTAR*\n\n` +
-                `Halo @${phoneNumber}, nomor WhatsApp Anda belum terdaftar di sistem PingKas.\n` +
-                `Silakan daftar/login terlebih dahulu melalui Web Portal atau Aplikasi PingKas untuk mulai mencatat keuangan.`,
+                `Halo @${phoneNumber}, nomor WhatsApp Anda (${displayPhone}) belum terdaftar di sistem PingKas.\n\n` +
+                `Silakan daftar/login terlebih dahulu melalui Web Portal atau Aplikasi PingKas:\n` +
+                `🌐 https://bot-finance-pi.vercel.app/portal`,
               mentions: [`${phoneNumber}@s.whatsapp.net`],
             },
             { quoted: msg }
@@ -585,7 +636,7 @@ async function startWhatsAppBot() {
                 `⚠️ *NOMOR WHATSAPP BELUM TERDAFTAR*\n` +
                 `━━━━━━━━━━━━━━━━━━━━\n` +
                 `Halo *${senderName}* (@${phoneNumber})!\n\n` +
-                `Nomor WhatsApp Anda belum terdaftar di sistem *PingKas*.\n\n` +
+                `Nomor WhatsApp Anda (${displayPhone}) belum terdaftar di sistem *PingKas*.\n\n` +
                 `Silakan daftar atau login terlebih dahulu melalui:\n` +
                 `🌐 *Web Portal:* https://bot-finance-pi.vercel.app/portal\n` +
                 `📱 *Aplikasi Mobile PingKas*\n\n` +
@@ -596,7 +647,7 @@ async function startWhatsAppBot() {
             { quoted: msg }
           );
         }
-        console.log(`⛔ Pesan ditolak: ${phoneNumber} belum terdaftar di database.`);
+        console.log(`⛔ Pesan ditolak: ${phoneNumber} (${displayPhone}) belum terdaftar di database.`);
         continue;
       }
 
