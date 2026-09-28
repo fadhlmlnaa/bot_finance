@@ -155,15 +155,18 @@ export async function syncTransactionToGoogleSheet(
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
+      timeZone: "Asia/Jakarta",
     });
     const timeFormatted = d.toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Jakarta",
     });
     // Format nama sheet tab bulanan: "September 2026"
     const sheetNameFormatted = d.toLocaleDateString("id-ID", {
       month: "long",
       year: "numeric",
+      timeZone: "Asia/Jakarta",
     });
 
     const isExpense = transaction.type === "EXPENSE";
@@ -233,7 +236,7 @@ export function generateSpreadsheetCsv(
 
   rows.push(`sep=,`);
   rows.push(`"${title}"`);
-  rows.push(`"Tanggal Unduh","${new Date().toLocaleString("id-ID")}"`);
+  rows.push(`"Tanggal Unduh","${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}"`);
   rows.push(`"Saldo Awal",${initialBalance}`);
   rows.push(`"Total Transaksi","${transactions.length}"`);
   rows.push("");
@@ -252,10 +255,12 @@ export function generateSpreadsheetCsv(
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
+      timeZone: "Asia/Jakarta",
     });
     const timeStr = d.toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Jakarta",
     });
 
     const isExpense = t.type === "EXPENSE";
