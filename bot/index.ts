@@ -343,9 +343,11 @@ async function startWhatsAppBot() {
       }
 
       const isGroup = senderJid.endsWith("@g.us");
-      const botRawId = sock.user?.id || "";
+      const meUser = sock.user || (state.creds as unknown as { me?: { id?: string; lid?: string } })?.me;
+      const botRawId = meUser?.id || "";
+      const botRawLid = meUser?.lid || "";
       const botPhoneNumber = botRawId.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
-      const botLid = sock.user?.lid?.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
+      const botLid = botRawLid.split(":")[0]?.split("@")[0]?.replace(/\D/g, "") || "";
       const botOwnerNumber = botPhoneNumber;
 
       let phoneNumber = "";
@@ -384,7 +386,7 @@ async function startWhatsAppBot() {
 
       if (!phoneNumber) continue;
 
-      // Filter pesan di Grup WhatsApp: Respon jika Bot di-TAG, direply, atau disebut @PingKas / PingKas / @bot
+      // Filter pesan di Grup WhatsApp: Respon jika Bot di-TAG (biru), direply, atau disebut @PingKas / PingKas / @bot
       let processedText = trimmedText;
       if (isGroup) {
         const contextInfo = msg.message.extendedTextMessage?.contextInfo;
@@ -393,13 +395,14 @@ async function startWhatsAppBot() {
 
         const botShortNum = botPhoneNumber.replace(/^62/, "");
 
-        // 1. Cek apakah bot di-mention via WhatsApp tag popup (@ kontak)
+        // 1. Cek apakah bot di-mention via WhatsApp tag popup (@ kontak biru)
         const isMentioned = mentionedJids.some((jid) => {
           const cleanJid = jid.split("@")[0].split(":")[0].replace(/\D/g, "");
           return (
             (botPhoneNumber && (jid.includes(botPhoneNumber) || cleanJid === botPhoneNumber)) ||
             (botLid && (jid.includes(botLid) || cleanJid === botLid)) ||
-            (botRawId && jid.includes(botRawId.split("@")[0]))
+            (botRawId && jid.includes(botRawId.split(":")[0])) ||
+            (botRawLid && jid.includes(botRawLid.split(":")[0]))
           );
         });
 
@@ -407,7 +410,8 @@ async function startWhatsAppBot() {
         const isQuoted =
           (botPhoneNumber && quotedParticipant.includes(botPhoneNumber)) ||
           (botLid && quotedParticipant.includes(botLid)) ||
-          (botRawId && quotedParticipant.includes(botRawId.split("@")[0]));
+          (botRawId && quotedParticipant.includes(botRawId.split(":")[0])) ||
+          (botRawLid && quotedParticipant.includes(botRawLid.split(":")[0]));
 
         // 3. Cek apakah teks mengandung @PingKas, PingKas, @bot, atau nomor HP bot
         const hasKeyword = new RegExp(
@@ -420,8 +424,9 @@ async function startWhatsAppBot() {
           continue;
         }
 
-        // Bersihkan mention tag @nomor / @bot / PingKas dari teks transaksi
-        processedText = trimmedText
+        // Hapus karakter invisible Unicode WhatsApp & bersihkan tag mention dari teks
+        let cleaned = trimmedText.replace(/[\u200B-\u200D\uFEFF\u2060]/g, "").trim();
+        cleaned = cleaned
           .replace(
             new RegExp(
               `@${botPhoneNumber}|@0${botShortNum}|@${botShortNum}|@\\d{8,16}|@pingkas|@bot|^pingkas\\b|^bot\\b`,
@@ -429,8 +434,11 @@ async function startWhatsAppBot() {
             ),
             ""
           )
+          .replace(/^@\S+\s*/, "") // Bersihkan tag kontak biru di awal jika ada
           .replace(/^[:,\s-]+/, "")
           .trim();
+
+        processedText = cleaned;
 
         if (!processedText) {
           // Jika user hanya tag @bot tanpa pesan, kirim panduan singkat
