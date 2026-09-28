@@ -387,10 +387,24 @@ async function startWhatsAppBot() {
 
       if (!phoneNumber) continue;
 
-      // Filter pesan di Grup WhatsApp: Respon jika Bot di-TAG (biru), direply, atau disebut @PingKas / PingKas / @bot
+      // Filter pesan di Grup WhatsApp: HANYA respon jika Bot di-TAG BIRU (@ mention kontak) atau di-REPLY
       let processedText = trimmedText;
       if (isGroup) {
-        const contextInfo = msg.message.extendedTextMessage?.contextInfo;
+        const rawMsg =
+          msg.message.ephemeralMessage?.message ||
+          msg.message.viewOnceMessage?.message ||
+          msg.message.viewOnceMessageV2?.message ||
+          msg.message;
+
+        const contextInfo =
+          rawMsg?.extendedTextMessage?.contextInfo ||
+          rawMsg?.imageMessage?.contextInfo ||
+          rawMsg?.videoMessage?.contextInfo ||
+          rawMsg?.documentMessage?.contextInfo ||
+          (rawMsg as any)?.buttonsResponseMessage?.contextInfo ||
+          (rawMsg as any)?.templateButtonReplyMessage?.contextInfo ||
+          (rawMsg as any)?.listResponseMessage?.contextInfo;
+
         const mentionedJids: string[] = contextInfo?.mentionedJid || [];
         const quotedParticipant: string = contextInfo?.participant || "";
 
@@ -414,19 +428,24 @@ async function startWhatsAppBot() {
           (botRawId && quotedParticipant.includes(botRawId.split(":")[0])) ||
           (botRawLid && quotedParticipant.includes(botRawLid.split(":")[0]));
 
-        // 3. Cek apakah teks mengandung @PingKas, PingKas, @bot, atau nomor HP bot
-        const hasKeyword = new RegExp(
-          `@?pingkas|@?bot|@${botPhoneNumber}|@0${botShortNum}|@${botShortNum}`,
-          "i"
-        ).test(trimmedText);
-
-        if (!isMentioned && !isQuoted && !hasKeyword) {
-          // Abaikan obrolan umum grup agar bot tidak spam
+        // WAJIB TAG BIRU / REPLY: Jika bukan tag biru atau reply bot, abaikan pesan grup sepenuhnya
+        if (!isMentioned && !isQuoted) {
           continue;
         }
 
         // Hapus karakter invisible Unicode WhatsApp & bersihkan tag mention dari teks
-        let cleaned = trimmedText.replace(/[\u200B-\u200D\uFEFF\u2060]/g, "").trim();
+        let cleaned = trimmedText.replace(/[\u200B-\u200D\uFEFF\u2060\u00A0]/g, "").trim();
+
+        // Hapus nomor JID yang di-mention dari isi teks
+        if (mentionedJids && mentionedJids.length > 0) {
+          for (const mJid of mentionedJids) {
+            const num = mJid.split("@")[0].split(":")[0].replace(/\D/g, "");
+            if (num) {
+              cleaned = cleaned.replace(new RegExp(`@${num}\\b`, "gi"), "");
+            }
+          }
+        }
+
         cleaned = cleaned
           .replace(
             new RegExp(
@@ -446,7 +465,7 @@ async function startWhatsAppBot() {
           await sock.sendMessage(
             senderJid,
             {
-              text: `👋 Halo @${phoneNumber}! Tag saya bersama catatan keuangan Anda.\n\n*Contoh Penggunaan di Grup:*\n• \`@PingKas Bakso 15k\`\n• \`@PingKas Gaji 5jt\`\n• \`@PingKas rekap\`\n• \`@PingKas bantuan\``,
+              text: `👋 Halo @${phoneNumber}! Tag saya bersama catatan keuangan Anda.\n\n*Contoh Penggunaan di Grup:*\n• Tag bot: *Bakso 15k*\n• Tag bot: *Gaji 5jt*\n• Tag bot: *rekap*\n• Tag bot: *bantuan*`,
               mentions: [`${phoneNumber}@s.whatsapp.net`],
             },
             { quoted: msg }
