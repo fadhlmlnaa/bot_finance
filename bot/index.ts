@@ -28,7 +28,11 @@ import {
 } from "../lib/sheets";
 
 
-const AUTH_DIR = path.join(process.cwd(), "bot_auth");
+// Direktori penyimpanan sesi WhatsApp (Persisten, tidak hilang saat restart/stop)
+const AUTH_DIR = path.resolve(__dirname, "..", "bot_auth");
+if (!fs.existsSync(AUTH_DIR)) {
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
+}
 
 // State for web status and QR rendering
 let currentSock: WASocket | null = null;
